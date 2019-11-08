@@ -34,9 +34,9 @@ replace OtherWestern=OtherWestern/1000000
 replace APP=APP/1000000
 replace INT=INT/1000000
 
-drop in 1/2
+drop in 1
 gen Year=.
-forv i=2001(1)2016{
+forv i=2001(1)2017{
 replace Year=`i' if strpos(_varname,"`i'")
 }
 gen Y2=PRB+OtherWestern
@@ -47,7 +47,7 @@ twoway (area Y4 Year, col(purple*0.5)) ///
        (area Y3 Year, col(midgreen*0.5)) ///
        (area Y2 Year, col(red*0.6)) ///
        (area PRB Year, col(midblue*0.5)), ///
-	   xlabel(2001(1)2016,labsize(*0.8)) ///
+	   xlabel(2001(1)2017,labsize(*0.8)) ///
 	   ylabel(0(200)1400,labsize(*0.8) format(%9.0gc) angle(0) grid gmax) ///
        xtitle("") ///
 	   ytitle("Million short tons") ///

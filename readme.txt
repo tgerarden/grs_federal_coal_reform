@@ -11,3 +11,5 @@ When run_code.do executes, it will call three other .do files. Intermediate outp
 	output/tables:	.dta files with each table in matrix format and the workbook Tables.xlsx with formatted versions of the final tables used in the manuscript
 
 One log is available in output/logs to facilitate debugging.
+
+Researchers wishing to conduct analysis using the Integrated Planning Model with alternative assumptions​ beyond those used in this paper may contact ICF International to do so. More information is available at https://www.icf.com/technology/ipm.​​
