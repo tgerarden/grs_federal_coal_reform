@@ -1,0 +1,5276 @@
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  /Users/todd/Dropbox/xProjects/coal royalties/grs_federal_coal_reform/output/logs/grs_federal_coal_reform__8_Nov_2019_11_49_22.log
+  log type:  text
+ opened on:   8 Nov 2019, 11:49:22
+
+. 
+. * run scripts
+. do "code/build/1_import_raw_data.do"
+
+. *************************************************************************
+. * PROJECT: grs_federal_coal_reform
+. * SOURCE OF THE RAW DATA: GRS_data.xlsx
+. * AUTHORS: Hui Zhou and Todd Gerarden
+. * DATE: February 2019
+. * STATA VERSION: Stata/MP 15.1 for Mac (Revision 17 Dec 2018)
+. **************************************************************************
+. 
+. clear
+
+. 
+. ********************************************************************************
+. *                         DATA FOR TABLE 1                                    *
+. ********************************************************************************
+. * Annual Federal and Non-Federal Coal Production 2013-2014
+. import excel State=A P2013=B P2014=C Fed2014=D using ./input/GRS_data.xlsx, sheet("EIA - Coal Production 2013-2014") clear
+
+. save ./intermediate_data/Coal_Prod_2013_2014, replace
+(note: file ./intermediate_data/Coal_Prod_2013_2014.dta not found)
+file ./intermediate_data/Coal_Prod_2013_2014.dta saved
+
+. 
+. ********************************************************************************
+. *                         DATA FOR TABLE 2                                    *
+. ********************************************************************************
+. * Price Indexes
+. import excel year=A PCE=B infl_ann_PCE=C infl_cum_PCE=D CPI=F infl_ann_CPI=G infl_cum_CPI=H ///
+> using ./input/GRS_data.xlsx, sheet("Price Indexes") clear
+
+. keep if _n>=4 & _n<=12
+(5 observations deleted)
+
+. destring PCE infl* CPI,replace
+PCE: all characters numeric; replaced as double
+infl_ann_PCE: all characters numeric; replaced as double
+(1 missing value generated)
+infl_cum_PCE: all characters numeric; replaced as double
+(1 missing value generated)
+infl_ann_CPI: all characters numeric; replaced as double
+(1 missing value generated)
+infl_cum_CPI: all characters numeric; replaced as double
+(1 missing value generated)
+CPI: all characters numeric; replaced as double
+
+. gen Year=.
+(9 missing values generated)
+
+. forvalues i=2007(1)2015{
+  2. replace Year=`i' if strpos(year,"`i'")
+  3. }
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+
+. order Year, first
+
+. drop year
+
+. save ./intermediate_data/Price_Indexes.dta,replace
+(note: file ./intermediate_data/Price_Indexes.dta not found)
+file ./intermediate_data/Price_Indexes.dta saved
+
+. 
+. * Per-ton surchage
+. import excel Year=A P2007_1=B P2007_2=C P2007_3=D P2007_4=E using ./input/GRS_data.xlsx, sheet("Social Cost of Carbon") clear
+
+. keep in 8/43
+(7 observations deleted)
+
+. destring Year P*, replace
+Year: all characters numeric; replaced as int
+P2007_1: all characters numeric; replaced as byte
+P2007_2: all characters numeric; replaced as byte
+P2007_3: all characters numeric; replaced as byte
+P2007_4: all characters numeric; replaced as int
+
+. save ./intermediate_data/Per_ton_Surcharge.dta,replace
+(note: file ./intermediate_data/Per_ton_Surcharge.dta not found)
+file ./intermediate_data/Per_ton_Surcharge.dta saved
+
+. 
+. * CO2 to short tons
+. import excel factor=A using ./input/GRS_data.xlsx, sheet("MT CO2 per Short Ton Coal") clear
+
+. keep in 2
+(24 observations deleted)
+
+. destring factor,replace
+factor: all characters numeric; replaced as double
+
+. save ./intermediate_data/CO2_short_ton.dta, replace
+(note: file ./intermediate_data/CO2_short_ton.dta not found)
+file ./intermediate_data/CO2_short_ton.dta saved
+
+. 
+. * Ramp-in Factor
+. import excel Ramp_in_factor=A using ./input/GRS_data.xlsx, sheet("Ramp-in Factor") clear
+
+. drop in 1
+(1 observation deleted)
+
+. destring Ramp_in_factor,replace
+Ramp_in_factor: all characters numeric; replaced as double
+
+. gen Year=_n+2014
+
+. save ./intermediate_data/Ramp_in_factor.dta, replace
+(note: file ./intermediate_data/Ramp_in_factor.dta not found)
+file ./intermediate_data/Ramp_in_factor.dta saved
+
+. 
+. ********************************************************************************
+. *                         DATA FOR TABLE 3                                    *
+. ********************************************************************************
+. * Primary case and secondary case
+. 
+. foreach x in "P" "S"{
+  2. * Firm Wholesale Power Prices 
+. import excel Scenario=B Year1=C Year2=D Year3=E Year4=F Year5=G Year6=H Year7=I ///
+> using ./input/GRS_data.xlsx, sheet("Firm Wholesale Power Prices (`x')") clear
+  3. keep in 5/18
+  4. drop in 5
+  5. drop in 9
+  6. gen scenario=_n
+  7. destring Year1,replace
+  8. save ./intermediate_data/Firm_Wholesale_Power_Prices_`x'.dta,replace
+  9. 
+. * CO2 Allowance Price 
+. import excel Region=B ///
+> P2016=C             P2018=D             P2020=E             P2025=F             P2030=G             P2040=H             P2050=I ///
+> P2016_SCC20=L       P2018_SCC20=M       P2020_SCC20=N       P2025_SCC20=O       P2030_SCC20=P       P2040_SCC20=Q       P2050_SCC20=R ///
+> P2016_SCC50=U       P2018_SCC50=V       P2020_SCC50=W       P2025_SCC50=X       P2030_SCC50=Y       P2040_SCC50=Z       P2050_SCC50=AA ///
+> P2016_SCC100=AD     P2018_SCC100=AE     P2020_SCC100=AF     P2025_SCC100=AG     P2030_SCC100=AH     P2040_SCC100=AI     P2050_SCC100=AJ ///
+> using ./input/GRS_data.xlsx, sheet("CO2 Allowance Prices (`x')") clear
+ 10. keep in 5/19
+ 11. drop in 7/9
+ 12. gen Scenario="CPP_Mass" in 1/6
+ 13. replace Scenario="CPP_Rate" in 7/12
+ 14. save ./intermediate_data/CO2_Allowance_Price_`x'.dta,replace
+ 15. 
+. * Total US CO2 Emissions 
+. import excel Scenario=B Year1=C Year2=D Year3=E Year4=F Year5=G Year6=H Year7=I ///
+> using ./input/GRS_data.xlsx, sheet("Total US CO2 Emissions (`x')") clear
+ 16. keep in 5/18
+ 17. drop in 5
+ 18. drop in 9
+ 19. destring Year1,replace
+ 20. 
+. forvalues i=1(1)7{
+ 21. gen Emission`i'=0.907185*Year`i'/1000
+ 22. }
+ 23. gen scenario=_n
+ 24. preserve
+ 25. keep scenario Scenario Emission*
+ 26. save ./intermediate_data/Total_US_CO2_Emissions_`x'.dta,replace
+ 27. restore
+ 28. 
+. * Cumulative Emissions Reductions
+. forvalues i=1(1)7{
+ 29. gen D`i'=0.907185*(Year`i'-Year`i'[1])/1000 in 1/4  //Mill metric tons Delta to Base Case
+ 30. replace D`i'=0.907185*(Year`i'-Year`i'[1])/1000 if _n==5|_n==9 //Mill metric tons Delta to CPP Mass Case
+ 31. replace D`i'=0.907185*(Year`i'-Year`i'[5])/1000 in 6/8 //Mill metric tons Delta to CPP Mass Case
+ 32. replace D`i'=0.907185*(Year`i'-Year`i'[9])/1000 in 10/12  //Mill metric tons Delta to CPP Rate Case
+ 33. }
+ 34. 
+. // Generate cumulative emissions relative to Base Case (metric Gton)
+. gen R2016=D1/1000
+ 35. gen R2017=R2016+(0.5*D1+0.5*D2)/1000
+ 36. gen R2018=R2017+D2/1000
+ 37. gen R2019=R2018+(0.5*D2+0.5*D3)/1000
+ 38. gen R2020=R2019+D3/1000
+ 39. forvalues i=2021(1)2024{
+ 40.    local j=`i'-1
+ 41.    gen R`i'=R`j'+((5-`i'+2020)*D3+(5-2025+`i')*D4)/(5*1000)
+ 42. }
+ 43. gen R2025=R2024+D4/1000
+ 44. forvalues i=2026(1)2029{
+ 45.    local j=`i'-1
+ 46.    gen R`i'=R`j'+((5-`i'+2025)*D4+(5-2030+`i')*D5)/(5*1000)
+ 47. }
+ 48. gen R2030=R2029+D5/1000
+ 49. forvalues i=2031(1)2039{
+ 50.   local j=`i'-1
+ 51.   gen R`i'=R`j'+((10-`i'+2030)*D5+(10-2040+`i')*D6)/(10*1000)
+ 52.   }
+ 53. gen R2040=R2039+D6/1000
+ 54. 
+. keep Scenario R*
+ 55. save ./intermediate_data/Cumul_emissions_reductions_`x'.dta,replace
+ 56. 
+. * Total Production Cost  
+. import excel Scenario=B Year1=C Year2=D Year3=E Year4=F Year5=G Year6=H Year7=I ///
+> using ./input/GRS_data.xlsx, sheet("Total Production Costs (`x')") clear
+ 57. keep in 5/18
+ 58. drop in 5
+ 59. drop in 9
+ 60. gen scenario=_n
+ 61. save ./intermediate_data/Total_Production_Costs_`x'.dta, replace
+ 62. }
+(4 observations deleted)
+(1 observation deleted)
+(1 observation deleted)
+Year1: all characters numeric; replaced as double
+(note: file ./intermediate_data/Firm_Wholesale_Power_Prices_P.dta not found)
+file ./intermediate_data/Firm_Wholesale_Power_Prices_P.dta saved
+(4 observations deleted)
+(3 observations deleted)
+(6 missing values generated)
+(6 real changes made)
+(note: file ./intermediate_data/CO2_Allowance_Price_P.dta not found)
+file ./intermediate_data/CO2_Allowance_Price_P.dta saved
+(4 observations deleted)
+(1 observation deleted)
+(1 observation deleted)
+Year1: all characters numeric; replaced as double
+(note: file ./intermediate_data/Total_US_CO2_Emissions_P.dta not found)
+file ./intermediate_data/Total_US_CO2_Emissions_P.dta saved
+(8 missing values generated)
+(2 real changes made)
+(3 real changes made)
+(3 real changes made)
+(8 missing values generated)
+(2 real changes made)
+(3 real changes made)
+(3 real changes made)
+(8 missing values generated)
+(2 real changes made)
+(3 real changes made)
+(3 real changes made)
+(8 missing values generated)
+(2 real changes made)
+(3 real changes made)
+(3 real changes made)
+(8 missing values generated)
+(2 real changes made)
+(3 real changes made)
+(3 real changes made)
+(8 missing values generated)
+(2 real changes made)
+(3 real changes made)
+(3 real changes made)
+(8 missing values generated)
+(2 real changes made)
+(3 real changes made)
+(3 real changes made)
+(note: file ./intermediate_data/Cumul_emissions_reductions_P.dta not found)
+file ./intermediate_data/Cumul_emissions_reductions_P.dta saved
+(4 observations deleted)
+(1 observation deleted)
+(1 observation deleted)
+(note: file ./intermediate_data/Total_Production_Costs_P.dta not found)
+file ./intermediate_data/Total_Production_Costs_P.dta saved
+(4 observations deleted)
+(1 observation deleted)
+(1 observation deleted)
+Year1: all characters numeric; replaced as double
+(note: file ./intermediate_data/Firm_Wholesale_Power_Prices_S.dta not found)
+file ./intermediate_data/Firm_Wholesale_Power_Prices_S.dta saved
+(4 observations deleted)
+(3 observations deleted)
+(6 missing values generated)
+(6 real changes made)
+(note: file ./intermediate_data/CO2_Allowance_Price_S.dta not found)
+file ./intermediate_data/CO2_Allowance_Price_S.dta saved
+(18 observations deleted)
+(1 observation deleted)
+(1 observation deleted)
+Year1: all characters numeric; replaced as double
+(note: file ./intermediate_data/Total_US_CO2_Emissions_S.dta not found)
+file ./intermediate_data/Total_US_CO2_Emissions_S.dta saved
+(8 missing values generated)
+(2 real changes made)
+(3 real changes made)
+(3 real changes made)
+(8 missing values generated)
+(2 real changes made)
+(3 real changes made)
+(3 real changes made)
+(8 missing values generated)
+(2 real changes made)
+(3 real changes made)
+(3 real changes made)
+(8 missing values generated)
+(2 real changes made)
+(3 real changes made)
+(3 real changes made)
+(8 missing values generated)
+(2 real changes made)
+(3 real changes made)
+(3 real changes made)
+(8 missing values generated)
+(2 real changes made)
+(3 real changes made)
+(3 real changes made)
+(8 missing values generated)
+(2 real changes made)
+(3 real changes made)
+(3 real changes made)
+(note: file ./intermediate_data/Cumul_emissions_reductions_S.dta not found)
+file ./intermediate_data/Cumul_emissions_reductions_S.dta saved
+(4 observations deleted)
+(1 observation deleted)
+(1 observation deleted)
+(note: file ./intermediate_data/Total_Production_Costs_S.dta not found)
+file ./intermediate_data/Total_Production_Costs_S.dta saved
+
+. *******************************************************************************
+. *                         DATA FOR TABLE 4                                    *
+. ********************************************************************************
+. * PRB Coal Production 
+. foreach x in "P" "S"{ 
+  2. import excel Region=B ///
+> P2016_Base=C             P2018_Base=D             P2020_Base=E             P2025_Base=F             P2030_Base=G             P2040_Base=H             P2050_B
+> ase=I ///
+> P2016_Base_SCC20=L       P2018_Base_SCC20=M       P2020_Base_SCC20=N       P2025_Base_SCC20=O       P2030_Base_SCC20=P       P2040_Base_SCC20=Q       P2050_B
+> ase_SCC20=R ///
+> P2016_Base_SCC50=U       P2018_Base_SCC50=V       P2020_Base_SCC50=W       P2025_Base_SCC50=X       P2030_Base_SCC50=Y       P2040_Base_SCC50=Z       P2050_B
+> ase_SCC50=AA ///
+> P2016_Base_SCC100=AD     P2018_Base_SCC100=AE     P2020_Base_SCC100=AF     P2025_Base_SCC100=AG     P2030_Base_SCC100=AH     P2040_Base_SCC100=AI     P2050_B
+> ase_SCC100=AJ ///
+> P2016_CPP_Mass=BN        P2018_CPP_Mass=BO        P2020_CPP_Mass=BP        P2025_CPP_Mass=BQ        P2030_CPP_Mass=BR        P2040_CPP_Mass=BS        P2050_C
+> PP_Mass=BT ///
+> P2016_CPP_Mass_SCC20=BW  P2018_CPP_Mass_SCC20=BX  P2020_CPP_Mass_SCC20=BY  P2025_CPP_Mass_SCC20=BZ  P2030_CPP_Mass_SCC20=CA  P2040_CPP_Mass_SCC20=CB  P2050_C
+> PP_Mass_SCC20=CC ///
+> P2016_CPP_Mass_SCC50=CF  P2018_CPP_Mass_SCC50=CG  P2020_CPP_Mass_SCC50=CH  P2025_CPP_Mass_SCC50=CI  P2030_CPP_Mass_SCC50=CJ  P2040_CPP_Mass_SCC50=CK  P2050_C
+> PP_Mass_SCC50=CL ///
+> P2016_CPP_Mass_SCC100=CO P2018_CPP_Mass_SCC100=CP P2020_CPP_Mass_SCC100=CQ P2025_CPP_Mass_SCC100=CR P2030_CPP_Mass_SCC100=CS P2040_CPP_Mass_SCC100=CT P2050_C
+> PP_Mass_SCC100=CU ///
+> P2016_CPP_Rate=DY        P2018_CPP_Rate=DZ        P2020_CPP_Rate=EA        P2025_CPP_Rate=EB        P2030_CPP_Rate=EC        P2040_CPP_Rate=ED        P2050_C
+> PP_Rate=EE ///
+> P2016_CPP_Rate_SCC20=EH   P2018_CPP_Rate_SCC20=EI  P2020_CPP_Rate_SCC20=EJ  P2025_CPP_Rate_SCC20=EK  P2030_CPP_Rate_SCC20=EL  P2040_CPP_Rate_SCC20=EM  P2050_
+> CPP_Rate_SCC20=EN ///
+> P2016_CPP_Rate_SCC50=EQ  P2018_CPP_Rate_SCC50=ER  P2020_CPP_Rate_SCC50=ES  P2025_CPP_Rate_SCC50=ET  P2030_CPP_Rate_SCC50=EU  P2040_CPP_Rate_SCC50=EV  P2050_C
+> PP_Rate_SCC50=EW ///
+> P2016_CPP_Rate_SCC100=EZ P2018_CPP_Rate_SCC100=FA P2020_CPP_Rate_SCC100=FB P2025_CPP_Rate_SCC100=FC P2030_CPP_Rate_SCC100=FD P2040_CPP_Rate_SCC100=FE P2050_C
+> PP_Rate_SCC100=FF ///
+> using ./input/GRS_data.xlsx, sheet("PRB Coal Production (`x')") clear
+  3. 
+. keep in 6/18
+  4. 
+. ds P*, has(type string)
+  5. foreach v in `r(varlist)' {
+  6. destring `v',replace
+  7. }
+  8. save ./intermediate_data/PRB_Coal_Production_`x'.dta,replace
+  9. 
+. * Mine mouth price
+. import excel Region=B ///
+> P2016_Base=C             P2018_Base=D             P2020_Base=E             P2025_Base=F             P2030_Base=G             P2040_Base=H             P2050_B
+> ase=I ///
+> P2016_Base_SCC20=L       P2018_Base_SCC20=M       P2020_Base_SCC20=N       P2025_Base_SCC20=O       P2030_Base_SCC20=P       P2040_Base_SCC20=Q       P2050_B
+> ase_SCC20=R ///
+> P2016_Base_SCC50=U       P2018_Base_SCC50=V       P2020_Base_SCC50=W       P2025_Base_SCC50=X       P2030_Base_SCC50=Y       P2040_Base_SCC50=Z       P2050_B
+> ase_SCC50=AA ///
+> P2016_Base_SCC100=AD     P2018_Base_SCC100=AE     P2020_Base_SCC100=AF     P2025_Base_SCC100=AG     P2030_Base_SCC100=AH     P2040_Base_SCC100=AI     P2050_B
+> ase_SCC100=AJ ///
+> P2016_CPP_Mass=BN        P2018_CPP_Mass=BO        P2020_CPP_Mass=BP        P2025_CPP_Mass=BQ        P2030_CPP_Mass=BR        P2040_CPP_Mass=BS        P2050_C
+> PP_Mass=BT ///
+> P2016_CPP_Mass_SCC20=BW  P2018_CPP_Mass_SCC20=BX  P2020_CPP_Mass_SCC20=BY  P2025_CPP_Mass_SCC20=BZ  P2030_CPP_Mass_SCC20=CA  P2040_CPP_Mass_SCC20=CB  P2050_C
+> PP_Mass_SCC20=CC ///
+> P2016_CPP_Mass_SCC50=CF  P2018_CPP_Mass_SCC50=CG  P2020_CPP_Mass_SCC50=CH  P2025_CPP_Mass_SCC50=CI  P2030_CPP_Mass_SCC50=CJ  P2040_CPP_Mass_SCC50=CK  P2050_C
+> PP_Mass_SCC50=CL ///
+> P2016_CPP_Mass_SCC100=CO P2018_CPP_Mass_SCC100=CP P2020_CPP_Mass_SCC100=CQ P2025_CPP_Mass_SCC100=CR P2030_CPP_Mass_SCC100=CS P2040_CPP_Mass_SCC100=CT P2050_C
+> PP_Mass_SCC100=CU ///
+> P2016_CPP_Rate=DY        P2018_CPP_Rate=DZ        P2020_CPP_Rate=EA        P2025_CPP_Rate=EB        P2030_CPP_Rate=EC        P2040_CPP_Rate=ED        P2050_C
+> PP_Rate=EE ///
+> P2016_CPP_Rate_SCC20=EH  P2018_CPP_Rate_SCC20=EI  P2020_CPP_Rate_SCC20=EJ  P2025_CPP_Rate_SCC20=EK  P2030_CPP_Rate_SCC20=EL  P2040_CPP_Rate_SCC20=EM  P2050_C
+> PP_Rate_SCC20=EN ///
+> P2016_CPP_Rate_SCC50=EQ  P2018_CPP_Rate_SCC50=ER  P2020_CPP_Rate_SCC50=ES  P2025_CPP_Rate_SCC50=ET  P2030_CPP_Rate_SCC50=EU  P2040_CPP_Rate_SCC50=EV  P2050_C
+> PP_Rate_SCC50=EW ///
+> P2016_CPP_Rate_SCC100=EZ P2018_CPP_Rate_SCC100=FA P2020_CPP_Rate_SCC100=FB P2025_CPP_Rate_SCC100=FC P2030_CPP_Rate_SCC100=FD P2040_CPP_Rate_SCC100=FE P2050_C
+> PP_Rate_SCC100=FF ///
+> using ./input/GRS_data.xlsx, sheet("Coal Prices (`x')") clear
+ 10. 
+. keep in 5/9
+ 11. 
+. * Replace all "N/A" to 0
+. ds P*, has(type string)
+ 12. foreach v in `r(varlist)' {
+ 13. replace `v' ="0" if `v'=="N/A"
+ 14. destring `v',replace
+ 15. }
+ 16. save ./intermediate_data/Mine_mouth_price_`x'.dta, replace
+ 17. 
+. * Social Cost of Carbon
+. import excel Year=A SCC=C using ./input/GRS_data.xlsx, sheet("Social Cost of Carbon") clear
+ 18. drop in 1/7
+ 19. destring Year SCC,replace
+ 20. save ./intermediate_data/SCC.dta,replace
+ 21. 
+. 
+. 
+. *******************************************************************************
+. *                         DATA FOR TABLE 5                                    *
+. ********************************************************************************
+. * Generation Mix
+. import excel Energy=B ///
+> P2016_Base=C             P2018_Base=D             P2020_Base=E             P2025_Base=F             P2030_Base=G             P2040_Base=H             P2050_B
+> ase=I ///
+> P2016_Base_SCC20=L       P2018_Base_SCC20=M       P2020_Base_SCC20=N       P2025_Base_SCC20=O       P2030_Base_SCC20=P       P2040_Base_SCC20=Q       P2050_B
+> ase_SCC20=R ///
+> P2016_Base_SCC50=U       P2018_Base_SCC50=V       P2020_Base_SCC50=W       P2025_Base_SCC50=X       P2030_Base_SCC50=Y       P2040_Base_SCC50=Z       P2050_B
+> ase_SCC50=AA ///
+> P2016_Base_SCC100=AD     P2018_Base_SCC100=AE     P2020_Base_SCC100=AF     P2025_Base_SCC100=AG     P2030_Base_SCC100=AH     P2040_Base_SCC100=AI     P2050_B
+> ase_SCC100=AJ ///
+> P2016_CPP_Mass=BN        P2018_CPP_Mass=BO        P2020_CPP_Mass=BP        P2025_CPP_Mass=BQ        P2030_CPP_Mass=BR        P2040_CPP_Mass=BS        P2050_C
+> PP_Mass=BT ///
+> P2016_CPP_Mass_SCC20=BW  P2018_CPP_Mass_SCC20=BX  P2020_CPP_Mass_SCC20=BY  P2025_CPP_Mass_SCC20=BZ  P2030_CPP_Mass_SCC20=CA  P2040_CPP_Mass_SCC20=CB  P2050_C
+> PP_Mass_SCC20=CC ///
+> P2016_CPP_Mass_SCC50=CF  P2018_CPP_Mass_SCC50=CG  P2020_CPP_Mass_SCC50=CH  P2025_CPP_Mass_SCC50=CI  P2030_CPP_Mass_SCC50=CJ  P2040_CPP_Mass_SCC50=CK  P2050_C
+> PP_Mass_SCC50=CL ///
+> P2016_CPP_Mass_SCC100=CO P2018_CPP_Mass_SCC100=CP P2020_CPP_Mass_SCC100=CQ P2025_CPP_Mass_SCC100=CR P2030_CPP_Mass_SCC100=CS P2040_CPP_Mass_SCC100=CT P2050_C
+> PP_Mass_SCC100=CU ///
+> P2016_CPP_Rate=DY        P2018_CPP_Rate=DZ        P2020_CPP_Rate=EA        P2025_CPP_Rate=EB        P2030_CPP_Rate=EC        P2040_CPP_Rate=ED        P2050_C
+> PP_Rate=EE ///
+> P2016_CPP_Rate_SCC20=EH  P2018_CPP_Rate_SCC20=EI  P2020_CPP_Rate_SCC20=EJ  P2025_CPP_Rate_SCC20=EK  P2030_CPP_Rate_SCC20=EL  P2040_CPP_Rate_SCC20=EM  P2050_C
+> PP_Rate_SCC20=EN ///
+> P2016_CPP_Rate_SCC50=EQ  P2018_CPP_Rate_SCC50=ER  P2020_CPP_Rate_SCC50=ES  P2025_CPP_Rate_SCC50=ET  P2030_CPP_Rate_SCC50=EU  P2040_CPP_Rate_SCC50=EV  P2050_C
+> PP_Rate_SCC50=EW ///
+> P2016_CPP_Rate_SCC100=EZ P2018_CPP_Rate_SCC100=FA P2020_CPP_Rate_SCC100=FB P2025_CPP_Rate_SCC100=FC P2030_CPP_Rate_SCC100=FD P2040_CPP_Rate_SCC100=FE P2050_C
+> PP_Rate_SCC100=FF ///
+> using ./input/GRS_data.xlsx, sheet("Generation Mix (`x')") clear
+ 22. keep in 5/20
+ 23. save ./intermediate_data/Generation_Mix_`x'.dta,replace
+ 24. 
+. * Coal Production by Basin
+. import excel Basin=B ///
+> P2016_Base=C             P2018_Base=D             P2020_Base=E             P2025_Base=F             P2030_Base=G             P2040_Base=H             P2050_B
+> ase=I ///
+> P2016_Base_SCC20=L       P2018_Base_SCC20=M       P2020_Base_SCC20=N       P2025_Base_SCC20=O       P2030_Base_SCC20=P       P2040_Base_SCC20=Q       P2050_B
+> ase_SCC20=R ///
+> P2016_Base_SCC50=U       P2018_Base_SCC50=V       P2020_Base_SCC50=W       P2025_Base_SCC50=X       P2030_Base_SCC50=Y       P2040_Base_SCC50=Z       P2050_B
+> ase_SCC50=AA ///
+> P2016_Base_SCC100=AD     P2018_Base_SCC100=AE     P2020_Base_SCC100=AF     P2025_Base_SCC100=AG     P2030_Base_SCC100=AH     P2040_Base_SCC100=AI     P2050_B
+> ase_SCC100=AJ ///
+> P2016_CPP_Mass=BN        P2018_CPP_Mass=BO        P2020_CPP_Mass=BP        P2025_CPP_Mass=BQ        P2030_CPP_Mass=BR        P2040_CPP_Mass=BS        P2050_C
+> PP_Mass=BT ///
+> P2016_CPP_Mass_SCC20=BW  P2018_CPP_Mass_SCC20=BX  P2020_CPP_Mass_SCC20=BY  P2025_CPP_Mass_SCC20=BZ  P2030_CPP_Mass_SCC20=CA  P2040_CPP_Mass_SCC20=CB  P2050_C
+> PP_Mass_SCC20=CC ///
+> P2016_CPP_Mass_SCC50=CF  P2018_CPP_Mass_SCC50=CG  P2020_CPP_Mass_SCC50=CH  P2025_CPP_Mass_SCC50=CI  P2030_CPP_Mass_SCC50=CJ  P2040_CPP_Mass_SCC50=CK  P2050_C
+> PP_Mass_SCC50=CL ///
+> P2016_CPP_Mass_SCC100=CO P2018_CPP_Mass_SCC100=CP P2020_CPP_Mass_SCC100=CQ P2025_CPP_Mass_SCC100=CR P2030_CPP_Mass_SCC100=CS P2040_CPP_Mass_SCC100=CT P2050_C
+> PP_Mass_SCC100=CU ///
+> P2016_CPP_Rate=DY        P2018_CPP_Rate=DZ        P2020_CPP_Rate=EA        P2025_CPP_Rate=EB        P2030_CPP_Rate=EC        P2040_CPP_Rate=ED        P2050_C
+> PP_Rate=EE ///
+> P2016_CPP_Rate_SCC20=EH  P2018_CPP_Rate_SCC20=EI  P2020_CPP_Rate_SCC20=EJ  P2025_CPP_Rate_SCC20=EK  P2030_CPP_Rate_SCC20=EL  P2040_CPP_Rate_SCC20=EM  P2050_C
+> PP_Rate_SCC20=EN ///
+> P2016_CPP_Rate_SCC50=EQ  P2018_CPP_Rate_SCC50=ER  P2020_CPP_Rate_SCC50=ES  P2025_CPP_Rate_SCC50=ET  P2030_CPP_Rate_SCC50=EU  P2040_CPP_Rate_SCC50=EV  P2050_C
+> PP_Rate_SCC50=EW ///
+> P2016_CPP_Rate_SCC100=EZ P2018_CPP_Rate_SCC100=FA P2020_CPP_Rate_SCC100=FB P2025_CPP_Rate_SCC100=FC P2030_CPP_Rate_SCC100=FD P2040_CPP_Rate_SCC100=FE P2050_C
+> PP_Rate_SCC100=FF ///
+> using ./input/GRS_data.xlsx, sheet("Coal Production by Basin (`x')") clear
+ 25. keep in 6/12
+ 26. ds P*, has(type string)
+ 27. foreach v in `r(varlist)' {
+ 28. destring `v',replace
+ 29. }
+ 30. save ./intermediate_data/Coal_Prod_Basin_`x'.dta,replace
+ 31. }
+(24 observations deleted)
+P2025_Base    P2025_Bas~50  P2025_CPP_~s  P2025_CPP_..  P2025_CPP_~e  P2025_CPP_..
+P2025_Bas~20  P2025_Ba~100  P2025_CPP_..  P2025_CPP_..  P2025_CPP_..  P2025_CPP_..
+P2025_Base: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_Base_SCC20: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_Base_SCC50: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_Base_SCC100: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_CPP_Mass: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_CPP_Mass_SCC20: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_CPP_Mass_SCC50: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_CPP_Mass_SCC100: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_CPP_Rate: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_CPP_Rate_SCC20: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_CPP_Rate_SCC50: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_CPP_Rate_SCC100: all characters numeric; replaced as double
+(4 missing values generated)
+(note: file ./intermediate_data/PRB_Coal_Production_P.dta not found)
+file ./intermediate_data/PRB_Coal_Production_P.dta saved
+(6 observations deleted)
+P2040_Bas~50  P2025_Ba~100  P2040_Ba~100  P204~s_SCC20  P204~s_SCC50  P2025_CPP_..  P2040_CPP_..  P2040_CPP_..  P2040_CPP_..  P2025_CPP_..  P2040_CPP_..
+P2050_Bas~50  P2030_Ba~100  P2050_Ba~100  P203~s_SCC50  P205~s_SCC50  P2030_CPP_..  P2050_CPP_..  P2030_CPP_..  P2050_CPP_..  P2030_CPP_..  P2050_CPP_..
+(1 real change made)
+P2040_Base_SCC50: all characters numeric; replaced as double
+(1 real change made)
+P2050_Base_SCC50: all characters numeric; replaced as double
+(2 real changes made)
+P2025_Base_SCC100: all characters numeric; replaced as byte
+(2 real changes made)
+P2030_Base_SCC100: all characters numeric; replaced as byte
+(3 real changes made)
+P2040_Base_SCC100: all characters numeric; replaced as byte
+(3 real changes made)
+P2050_Base_SCC100: all characters numeric; replaced as byte
+(1 real change made)
+P2040_CPP_Mass_SCC20: all characters numeric; replaced as double
+(1 real change made)
+P2030_CPP_Mass_SCC50: all characters numeric; replaced as double
+(1 real change made)
+P2040_CPP_Mass_SCC50: all characters numeric; replaced as double
+(2 real changes made)
+P2050_CPP_Mass_SCC50: all characters numeric; replaced as byte
+(2 real changes made)
+P2025_CPP_Mass_SCC100: all characters numeric; replaced as byte
+(2 real changes made)
+P2030_CPP_Mass_SCC100: all characters numeric; replaced as byte
+(3 real changes made)
+P2040_CPP_Mass_SCC100: all characters numeric; replaced as byte
+(3 real changes made)
+P2050_CPP_Mass_SCC100: all characters numeric; replaced as byte
+(1 real change made)
+P2040_CPP_Rate_SCC20: all characters numeric; replaced as double
+(1 real change made)
+P2030_CPP_Rate_SCC50: all characters numeric; replaced as double
+(1 real change made)
+P2040_CPP_Rate_SCC50: all characters numeric; replaced as double
+(1 real change made)
+P2050_CPP_Rate_SCC50: all characters numeric; replaced as double
+(3 real changes made)
+P2025_CPP_Rate_SCC100: all characters numeric; replaced as byte
+(2 real changes made)
+P2030_CPP_Rate_SCC100: all characters numeric; replaced as byte
+(3 real changes made)
+P2040_CPP_Rate_SCC100: all characters numeric; replaced as byte
+(3 real changes made)
+P2050_CPP_Rate_SCC100: all characters numeric; replaced as byte
+(note: file ./intermediate_data/Mine_mouth_price_P.dta not found)
+file ./intermediate_data/Mine_mouth_price_P.dta saved
+(7 observations deleted)
+Year: all characters numeric; replaced as int
+SCC: all characters numeric; replaced as byte
+(note: file ./intermediate_data/SCC.dta not found)
+file ./intermediate_data/SCC.dta saved
+(4 observations deleted)
+(note: file ./intermediate_data/Generation_Mix_P.dta not found)
+file ./intermediate_data/Generation_Mix_P.dta saved
+(6 observations deleted)
+P2025_Base    P2025_Bas~50  P2025_CPP_~s  P2025_CPP_..  P2025_CPP_~e  P2025_CPP_..
+P2025_Bas~20  P2025_Ba~100  P2025_CPP_..  P2025_CPP_..  P2025_CPP_..  P2025_CPP_..
+P2025_Base: all characters numeric; replaced as double
+P2025_Base_SCC20: all characters numeric; replaced as double
+P2025_Base_SCC50: all characters numeric; replaced as double
+P2025_Base_SCC100: all characters numeric; replaced as double
+P2025_CPP_Mass: all characters numeric; replaced as double
+P2025_CPP_Mass_SCC20: all characters numeric; replaced as double
+P2025_CPP_Mass_SCC50: all characters numeric; replaced as double
+P2025_CPP_Mass_SCC100: all characters numeric; replaced as double
+P2025_CPP_Rate: all characters numeric; replaced as double
+P2025_CPP_Rate_SCC20: all characters numeric; replaced as double
+P2025_CPP_Rate_SCC50: all characters numeric; replaced as double
+P2025_CPP_Rate_SCC100: all characters numeric; replaced as double
+(note: file ./intermediate_data/Coal_Prod_Basin_P.dta not found)
+file ./intermediate_data/Coal_Prod_Basin_P.dta saved
+(24 observations deleted)
+P2025_Base    P2025_Bas~50  P2025_CPP_~s  P2025_CPP_..  P2025_CPP_~e  P2025_CPP_..
+P2025_Bas~20  P2025_Ba~100  P2025_CPP_..  P2025_CPP_..  P2025_CPP_..  P2025_CPP_..
+P2025_Base: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_Base_SCC20: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_Base_SCC50: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_Base_SCC100: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_CPP_Mass: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_CPP_Mass_SCC20: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_CPP_Mass_SCC50: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_CPP_Mass_SCC100: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_CPP_Rate: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_CPP_Rate_SCC20: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_CPP_Rate_SCC50: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_CPP_Rate_SCC100: all characters numeric; replaced as double
+(4 missing values generated)
+(note: file ./intermediate_data/PRB_Coal_Production_S.dta not found)
+file ./intermediate_data/PRB_Coal_Production_S.dta saved
+(4 observations deleted)
+P2040_Bas~20  P2030_Bas~50  P2020_Ba~100  P2040_Ba~100  P205~s_SCC20  P204~s_SCC50  P2025_CPP_..  P2050_CPP_..  P2025_CPP_..  P2020_CPP_..  P2040_CPP_..
+P2050_Bas~20  P2040_Bas~50  P2025_Ba~100  P2050_Ba~100  P2025_CPP_..  P205~s_SCC50  P2030_CPP_..  P2040_CPP_..  P2030_CPP_..  P2025_CPP_..  P2050_CPP_..
+P2025_Bas~50  P2050_Bas~50  P2030_Ba~100  P204~s_SCC20  P203~s_SCC50  P2020_CPP_..  P2040_CPP_..  P2050_CPP_..  P2040_CPP_..  P2030_CPP_..
+(1 real change made)
+P2040_Base_SCC20: all characters numeric; replaced as double
+(1 real change made)
+P2050_Base_SCC20: all characters numeric; replaced as double
+(1 real change made)
+P2025_Base_SCC50: all characters numeric; replaced as double
+(1 real change made)
+P2030_Base_SCC50: all characters numeric; replaced as double
+(2 real changes made)
+P2040_Base_SCC50: all characters numeric; replaced as double
+(1 real change made)
+P2050_Base_SCC50: all characters numeric; replaced as double
+(1 real change made)
+P2020_Base_SCC100: all characters numeric; replaced as double
+(5 real changes made)
+P2025_Base_SCC100: all characters numeric; replaced as byte
+(5 real changes made)
+P2030_Base_SCC100: all characters numeric; replaced as byte
+(5 real changes made)
+P2040_Base_SCC100: all characters numeric; replaced as byte
+(5 real changes made)
+P2050_Base_SCC100: all characters numeric; replaced as byte
+(1 real change made)
+P2040_CPP_Mass_SCC20: all characters numeric; replaced as double
+(2 real changes made)
+P2050_CPP_Mass_SCC20: all characters numeric; replaced as double
+(1 real change made)
+P2025_CPP_Mass_SCC50: all characters numeric; replaced as double
+(2 real changes made)
+P2030_CPP_Mass_SCC50: all characters numeric; replaced as double
+(2 real changes made)
+P2040_CPP_Mass_SCC50: all characters numeric; replaced as double
+(4 real changes made)
+P2050_CPP_Mass_SCC50: all characters numeric; replaced as double
+(1 real change made)
+P2020_CPP_Mass_SCC100: all characters numeric; replaced as double
+(4 real changes made)
+P2025_CPP_Mass_SCC100: all characters numeric; replaced as double
+(4 real changes made)
+P2030_CPP_Mass_SCC100: all characters numeric; replaced as double
+(5 real changes made)
+P2040_CPP_Mass_SCC100: all characters numeric; replaced as byte
+(5 real changes made)
+P2050_CPP_Mass_SCC100: all characters numeric; replaced as byte
+(1 real change made)
+P2040_CPP_Rate_SCC20: all characters numeric; replaced as double
+(1 real change made)
+P2050_CPP_Rate_SCC20: all characters numeric; replaced as double
+(1 real change made)
+P2025_CPP_Rate_SCC50: all characters numeric; replaced as double
+(1 real change made)
+P2030_CPP_Rate_SCC50: all characters numeric; replaced as double
+(2 real changes made)
+P2040_CPP_Rate_SCC50: all characters numeric; replaced as double
+(1 real change made)
+P2020_CPP_Rate_SCC100: all characters numeric; replaced as double
+(5 real changes made)
+P2025_CPP_Rate_SCC100: all characters numeric; replaced as byte
+(5 real changes made)
+P2030_CPP_Rate_SCC100: all characters numeric; replaced as byte
+(5 real changes made)
+P2040_CPP_Rate_SCC100: all characters numeric; replaced as byte
+(5 real changes made)
+P2050_CPP_Rate_SCC100: all characters numeric; replaced as byte
+(note: file ./intermediate_data/Mine_mouth_price_S.dta not found)
+file ./intermediate_data/Mine_mouth_price_S.dta saved
+(7 observations deleted)
+Year: all characters numeric; replaced as int
+SCC: all characters numeric; replaced as byte
+file ./intermediate_data/SCC.dta saved
+(4 observations deleted)
+(note: file ./intermediate_data/Generation_Mix_S.dta not found)
+file ./intermediate_data/Generation_Mix_S.dta saved
+(5 observations deleted)
+P2025_Base    P2025_Bas~50  P2025_CPP_~s  P2025_CPP_..  P2025_CPP_~e  P2025_CPP_..
+P2025_Bas~20  P2025_Ba~100  P2025_CPP_..  P2025_CPP_..  P2025_CPP_..  P2025_CPP_..
+P2025_Base: all characters numeric; replaced as double
+P2025_Base_SCC20: all characters numeric; replaced as double
+P2025_Base_SCC50: all characters numeric; replaced as double
+P2025_Base_SCC100: all characters numeric; replaced as double
+P2025_CPP_Mass: all characters numeric; replaced as double
+P2025_CPP_Mass_SCC20: all characters numeric; replaced as double
+P2025_CPP_Mass_SCC50: all characters numeric; replaced as double
+P2025_CPP_Mass_SCC100: all characters numeric; replaced as double
+P2025_CPP_Rate: all characters numeric; replaced as double
+P2025_CPP_Rate_SCC20: all characters numeric; replaced as double
+P2025_CPP_Rate_SCC50: all characters numeric; replaced as double
+P2025_CPP_Rate_SCC100: all characters numeric; replaced as double
+(note: file ./intermediate_data/Coal_Prod_Basin_S.dta not found)
+file ./intermediate_data/Coal_Prod_Basin_S.dta saved
+
+. 
+. *******************************************************************************
+. *                         DATA FOR TABLE 6                                    *
+. ********************************************************************************
+. * Total US CO2 Emissions (L)
+. import excel Scenario=B Year1=C Year2=D Year3=E Year4=F Year5=G Year6=H Year7=I ///
+> using ./input/GRS_data.xlsx, sheet("Total US CO2 Emissions (L)") clear
+
+. keep in 3/8
+(18 observations deleted)
+
+. destring Year1,replace
+Year1: all characters numeric; replaced as double
+
+. 
+. forvalues i=1(1)7{
+  2. gen Emission`i'=0.907185*Year`i'/1000
+  3. }
+
+. gen scenario=_n
+
+. keep scenario Scenario Emission*
+
+. save ./intermediate_data/Total_US_CO2_Emissions_L.dta,replace
+(note: file ./intermediate_data/Total_US_CO2_Emissions_L.dta not found)
+file ./intermediate_data/Total_US_CO2_Emissions_L.dta saved
+
+. 
+. * PRB Coal Production (L)
+. import excel Region=B ///
+> P2016_Base1=C       P2018_Base1=D       P2020_Base1=E       P2025_Base1=F       P2030_Base1=G       P2040_Base1=H       P2050_Base1=I ///
+> P2016_Base2=L       P2018_Base2=M       P2020_Base2=N       P2025_Base2=O       P2030_Base2=P       P2040_Base2=Q       P2050_Base2=R ///
+> P2016_Base3=U       P2018_Base3=V       P2020_Base3=W       P2025_Base3=X       P2030_Base3=Y       P2040_Base3=Z       P2050_Base3=AA ///
+> P2016_CPP_Mass1=AV        P2018_CPP_Mass1=AW        P2020_CPP_Mass1=AX        P2025_CPP_Mass1=AY        P2030_CPP_Mass1=AZ        P2040_CPP_Mass1=BA        P
+> 2050_CPP_Mass1=BB ///
+> P2016_CPP_Mass2=BE        P2018_CPP_Mass2=BF        P2020_CPP_Mass2=BG        P2025_CPP_Mass2=BH        P2030_CPP_Mass2=BI        P2040_CPP_Mass2=BJ        P
+> 2050_CPP_Mass2=BK ///
+> P2016_CPP_Mass3=BN        P2018_CPP_Mass3=BO        P2020_CPP_Mass3=BP        P2025_CPP_Mass3=BQ        P2030_CPP_Mass3=BR        P2040_CPP_Mass3=BS        P
+> 2050_CPP_Mass3=BT ///
+> using ./input/GRS_data.xlsx, sheet("PRB Coal Production (L)") clear
+
+. keep in 6/18
+(24 observations deleted)
+
+. ds P*, has(type string)
+P2025_Base1   P2025_Base2   P2025_Base3   P2025_CPP_~1  P2025_CPP_~2  P2025_CPP_~3
+
+. foreach v in `r(varlist)' {
+  2. destring `v',replace
+  3. }
+P2025_Base1: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_Base2: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_Base3: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_CPP_Mass1: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_CPP_Mass2: all characters numeric; replaced as double
+(4 missing values generated)
+P2025_CPP_Mass3: all characters numeric; replaced as double
+(4 missing values generated)
+
+. save ./intermediate_data/PRB_Coal_Production_L.dta,replace
+(note: file ./intermediate_data/PRB_Coal_Production_L.dta not found)
+file ./intermediate_data/PRB_Coal_Production_L.dta saved
+
+. 
+. * Firm Wholesale Power Prices (L)
+. import excel Scenario=B Year1=C Year2=D Year3=E Year4=F Year5=G Year6=H Year7=I ///
+> using ./input/GRS_data.xlsx, sheet("Firm Wholesale Power Prices (L)") clear
+
+. keep in 3/8
+(2 observations deleted)
+
+. gen scenario=_n
+
+. destring Year1,replace
+Year1: all characters numeric; replaced as double
+
+. save ./intermediate_data/Firm_Wholesale_Power_Prices_L.dta,replace
+(note: file ./intermediate_data/Firm_Wholesale_Power_Prices_L.dta not found)
+file ./intermediate_data/Firm_Wholesale_Power_Prices_L.dta saved
+
+. 
+. * CO2 Allowance Price (L)
+. import excel Region=B ///
+> P2016_Base1=C       P2018_Base1=D       P2020_Base1=E       P2025_Base1=F       P2030_Base1=G       P2040_Base1=H       P2050_Base1=I ///
+> P2016_Base2=L       P2018_Base2=M       P2020_Base2=N       P2025_Base2=O       P2030_Base2=P       P2040_Base2=Q       P2050_Base2=R ///
+> P2016_Base3=U       P2018_Base3=V       P2020_Base3=W       P2025_Base3=X       P2030_Base3=Y       P2040_Base3=Z       P2050_Base3=AA ///
+> using ./input/GRS_data.xlsx, sheet("CO2 Allowance Prices (L)") clear
+
+. keep in 3/8
+(2 observations deleted)
+
+. save ./intermediate_data/CO2_Allowance_Price_L.dta,replace
+(note: file ./intermediate_data/CO2_Allowance_Price_L.dta not found)
+file ./intermediate_data/CO2_Allowance_Price_L.dta saved
+
+. 
+. * Generation Mix (L)
+. import excel Energy=B ///
+> P2016_Base1=C       P2018_Base1=D       P2020_Base1=E       P2025_Base1=F       P2030_Base1=G       P2040_Base1=H       P2050_Base1=I ///
+> P2016_Base2=L       P2018_Base2=M       P2020_Base2=N       P2025_Base2=O       P2030_Base2=P       P2040_Base2=Q       P2050_Base2=R ///
+> P2016_Base3=U       P2018_Base3=V       P2020_Base3=W       P2025_Base3=X       P2030_Base3=Y       P2040_Base3=Z       P2050_Base3=AA ///
+> P2016_CPP_Mass1=AV        P2018_CPP_Mass1=AW        P2020_CPP_Mass1=AX        P2025_CPP_Mass1=AY        P2030_CPP_Mass1=AZ        P2040_CPP_Mass1=BA        P
+> 2050_CPP_Mass1=BB ///
+> P2016_CPP_Mass2=BE        P2018_CPP_Mass2=BF        P2020_CPP_Mass2=BG        P2025_CPP_Mass2=BH        P2030_CPP_Mass2=BI        P2040_CPP_Mass2=BJ        P
+> 2050_CPP_Mass2=BK ///
+> P2016_CPP_Mass3=BN        P2018_CPP_Mass3=BO        P2020_CPP_Mass3=BP        P2025_CPP_Mass3=BQ        P2030_CPP_Mass3=BR        P2040_CPP_Mass3=BS        P
+> 2050_CPP_Mass3=BT ///
+> using ./input/GRS_data.xlsx, sheet("Generation Mix (L)") clear
+
+. keep in 5/20
+(4 observations deleted)
+
+. save ./intermediate_data/Generation_Mix_L.dta,replace
+(note: file ./intermediate_data/Generation_Mix_L.dta not found)
+file ./intermediate_data/Generation_Mix_L.dta saved
+
+. 
+. * Coal Production by Basin (L)
+. import excel Basin=B ///
+> P2016_Base1=C       P2018_Base1=D       P2020_Base1=E       P2025_Base1=F       P2030_Base1=G       P2040_Base1=H       P2050_Base1=I ///
+> P2016_Base2=L       P2018_Base2=M       P2020_Base2=N       P2025_Base2=O       P2030_Base2=P       P2040_Base2=Q       P2050_Base2=R ///
+> P2016_Base3=U       P2018_Base3=V       P2020_Base3=W       P2025_Base3=X       P2030_Base3=Y       P2040_Base3=Z       P2050_Base3=AA ///
+> P2016_CPP_Mass1=AV        P2018_CPP_Mass1=AW        P2020_CPP_Mass1=AX        P2025_CPP_Mass1=AY        P2030_CPP_Mass1=AZ        P2040_CPP_Mass1=BA        P
+> 2050_CPP_Mass1=BB ///
+> P2016_CPP_Mass2=BE        P2018_CPP_Mass2=BF        P2020_CPP_Mass2=BG        P2025_CPP_Mass2=BH        P2030_CPP_Mass2=BI        P2040_CPP_Mass2=BJ        P
+> 2050_CPP_Mass2=BK ///
+> P2016_CPP_Mass3=BN        P2018_CPP_Mass3=BO        P2020_CPP_Mass3=BP        P2025_CPP_Mass3=BQ        P2030_CPP_Mass3=BR        P2040_CPP_Mass3=BS        P
+> 2050_CPP_Mass3=BT ///
+> using ./input/GRS_data.xlsx, sheet("Coal Production by Basin (L)") clear
+
+. keep in 4/10
+(3 observations deleted)
+
+. ds P*, has(type string)
+P2025_Base1   P2025_Base2   P2025_Base3   P2025_CPP_~1  P2025_CPP_~2  P2025_CPP_~3
+
+. foreach v in `r(varlist)' {
+  2. destring `v',replace
+  3. }
+P2025_Base1: all characters numeric; replaced as double
+P2025_Base2: all characters numeric; replaced as double
+P2025_Base3: all characters numeric; replaced as double
+P2025_CPP_Mass1: all characters numeric; replaced as double
+P2025_CPP_Mass2: all characters numeric; replaced as double
+P2025_CPP_Mass3: all characters numeric; replaced as double
+
+. save ./intermediate_data/Coal_Prod_Basin_L.dta,replace
+(note: file ./intermediate_data/Coal_Prod_Basin_L.dta not found)
+file ./intermediate_data/Coal_Prod_Basin_L.dta saved
+
+. 
+. 
+. *******************************************************************************
+. *                         DATA FOR FIGURE 1                                    *
+. ********************************************************************************
+. import excel Region=A P2017=B P2016=C P2015=D P2014=E P2013=F P2012=G P2011=H P2010=I P2009=J P2008=K ///
+> P2007=L P2006=M P2005=N P2004=O P2003=P P2002=Q P2001=R using ./input/GRS_data.xlsx, sheet("EIA - Past Production by Region") clear
+
+. keep in 6/17
+(5 observations deleted)
+
+. save ./intermediate_data/EIA_Prod_Region.dta,replace
+file ./intermediate_data/EIA_Prod_Region.dta saved
+
+. 
+. *******************************************************************************
+. *                         DATA FOR FIGURE 2                                    *
+. ********************************************************************************
+. * Lease data
+. import excel Yrs_to_adj=I Tons=W using ./input/GRS_data.xlsx, sheet("Lease Data") clear
+
+. drop in 1/2
+(2 observations deleted)
+
+. destring Yrs_to_adj, replace
+Yrs_to_adj: all characters numeric; replaced as byte
+(277 missing values generated)
+
+. replace Tons="." if Tons=="-"
+(2 real changes made)
+
+. destring Tons, replace
+Tons: all characters numeric; replaced as double
+(236 missing values generated)
+
+. keep in 1/330
+(234 observations deleted)
+
+. save ./intermediate_data/Lease_data.dta, replace
+(note: file ./intermediate_data/Lease_data.dta not found)
+file ./intermediate_data/Lease_data.dta saved
+
+. 
+end of do-file
+
+. do "code/analyze/2_tables.do"
+
+. *************************************************************************
+. * PROJECT: grs_federal_coal_reform
+. * SOURCE OF THE RAW DATA: GRS_data.xlsx
+. * AUTHORS: Hui Zhou and Todd Gerarden
+. * DATE: February 2019
+. * STATA VERSION: Stata/MP 15.1 for Mac (Revision 17 Dec 2018)
+. **************************************************************************
+. 
+. clear
+
+. 
+. *********************************************************************************
+. * TABLE 1: Annual Federal and Non-Federal Coal Production *
+. *********************************************************************************
+. use ./intermediate_data/Coal_Prod_2013_2014, clear
+
+. keep in 7/11
+(25 observations deleted)
+
+. destring P* Fed2014, replace
+P2013: all characters numeric; replaced as long
+P2014: all characters numeric; replaced as long
+Fed2014: all characters numeric; replaced as int
+
+. xpose, clear varname
+
+. gen v6=v5-(v1+v2+v3+v4)
+(1 missing value generated)
+
+. order v6, before(v5)
+
+. xpose, clear 
+
+. tostring State,replace
+State was float now str1
+
+. replace State="WY" in 1
+variable State was str1 now str2
+(1 real change made)
+
+. replace State="MT" in 2
+(1 real change made)
+
+. replace State="CC" in 3
+(1 real change made)
+
+. replace State="UT" in 4
+(1 real change made)
+
+. replace State="Oth" in 5
+variable State was str2 now str3
+(1 real change made)
+
+. replace State="Total" in 6
+variable State was str3 now str5
+(1 real change made)
+
+. replace P2013=round(P2013/1000,1)
+(6 real changes made)
+
+. replace P2014=round(P2014/1000,1)
+(6 real changes made)
+
+. gen Fed_per=Fed2014/(P2013*1/4+P2014*3/4)
+
+. save ./output/tables/Table1.dta,replace
+(note: file ./output/tables/Table1.dta not found)
+file ./output/tables/Table1.dta saved
+
+. 
+. *********************************************************************************
+. * TABLE 2: Simulated Phased-In Royalty Surcharges for Federal Coal INdexed to SCC with 10-year linera phase-in *
+. *********************************************************************************
+. use ./intermediate_data/Price_Indexes.dta,clear
+
+. keep Year PCE
+
+. xpose, clear varname
+
+. forvalues i = 1(1)9{
+  2. local year = v`i' in 1
+  3. rename v`i' Year`year'
+  4. }
+
+. keep in 2
+(1 observation deleted)
+
+. gen Infl2007_2015=Year2015/Year2007
+
+. gen Infl2015_2012=Year2012/Year2015
+
+. gen Infl2007_2012=Year2012/Year2007
+
+. local Infl07_15=Infl2007_2015  // Inflation factor from 2007 to 2015
+
+. local Infl15_12=Infl2015_2012  // Deflation factor from 2015 to 2012
+
+. local Infl07_12=Infl2007_2012  // Inflation factor from 2007 to 2012
+
+. 
+. use ./intermediate_data/CO2_short_ton.dta,clear
+
+. local Factor=factor
+
+. 
+. use ./intermediate_data/Per_ton_Surcharge,clear
+
+. gen P2015_1=P2007_1*`Infl07_15'
+
+. gen P2015_2=P2007_2*`Infl07_15'
+
+. gen P2015_3=P2007_3*`Infl07_15'
+
+. gen P2015_4=P2007_4*`Infl07_15'
+
+. 
+. gen P2012_1=P2015_1*`Infl15_12'
+
+. gen P2012_2=P2015_2*`Infl15_12'
+
+. gen P2012_3=P2015_3*`Infl15_12'
+
+. gen P2012_4=P2015_4*`Infl15_12'
+
+. 
+. gen SCC2015_100=P2015_2*`Factor'
+
+. gen SCC2015_50=SCC2015_100*0.5
+
+. gen SCC2015_20=SCC2015_100*0.2
+
+. 
+. gen SCC2012_100=P2012_2*`Factor'
+
+. gen SCC2012_50=SCC2012_100*0.5
+
+. gen SCC2012_20=SCC2012_100*0.2
+
+. 
+. merge 1:1 Year using ./intermediate_data/Ramp_in_factor.dta
+(note: variable Year was int, now float to accommodate using data's values)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                36  (_merge==3)
+    -----------------------------------------
+
+. drop _merge
+
+. 
+. gen RSCC2015_100=SCC2015_100*Ramp_in_factor
+
+. gen RSCC2015_50=SCC2015_50*Ramp_in_factor
+
+. gen RSCC2015_20=SCC2015_20*Ramp_in_factor
+
+. 
+. gen RSCC2012_100=SCC2012_100*Ramp_in_factor
+
+. gen RSCC2012_50=SCC2012_50*Ramp_in_factor
+
+. gen RSCC2012_20=SCC2012_20*Ramp_in_factor
+
+. save ./intermediate_data/Table2_surcharge.dta,replace
+(note: file ./intermediate_data/Table2_surcharge.dta not found)
+file ./intermediate_data/Table2_surcharge.dta saved
+
+. 
+. keep if Year==2016|Year==2018|Year==2020|Year==2025|Year==2030
+(31 observations deleted)
+
+. keep Year RSCC2012_20 RSCC2012_50 RSCC2012_100
+
+. order RSCC2012_20, before(RSCC2012_50)
+
+. order RSCC2012_100, after(RSCC2012_50)
+
+. save ./output/tables/Table2.dta,replace
+(note: file ./output/tables/Table2.dta not found)
+file ./output/tables/Table2.dta saved
+
+. 
+. 
+. *********************************************************************************
+. ************ TABLE 3: IPM Results: Electricity and Allowance Prices *********
+. *********************************************************************************
+. use ./intermediate_data/Firm_Wholesale_Power_Prices_P,clear
+
+. keep Scenario scenario Year5
+
+. tempfile Firm_Wholesale
+
+. save `Firm_Wholesale'
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.000001 saved
+
+. 
+. use ./intermediate_data/CO2_Allowance_Price_P,clear
+
+. keep Region P2030*
+
+. preserve
+
+. keep in 1/6
+(6 observations deleted)
+
+. xpose, clear varname 
+
+. tempfile CO2_Allowance_CPP_Mass
+
+. save `CO2_Allowance_CPP_Mass'
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.000003 saved
+
+. restore
+
+. 
+. keep in 7/12
+(6 observations deleted)
+
+. xpose, clear varname
+
+. tempfile CO2_Allowance_CPP_Rate
+
+. save `CO2_Allowance_CPP_Rate' 
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.000004 saved
+
+. 
+. use `CO2_Allowance_CPP_Mass',clear
+
+. append using `CO2_Allowance_CPP_Rate'
+
+. drop in 1
+(1 observation deleted)
+
+. drop in 5
+(1 observation deleted)
+
+. gen scenario =  5 in 1
+(7 missing values generated)
+
+. forvalues i=6(1)12{
+  2. local j=`i'-4
+  3. replace scenario = `i' in `j'
+  4. }
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+
+. drop _varname
+
+. tempfile CO2_Allowance
+
+. save `CO2_Allowance'
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.000005 saved
+
+. 
+. use `Firm_Wholesale',clear
+
+. merge 1:1 scenario using `CO2_Allowance'
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             4
+        from master                         4  (_merge==1)
+        from using                          0  (_merge==2)
+
+    matched                                 8  (_merge==3)
+    -----------------------------------------
+
+. drop _merge scenario
+
+. rename Year5 Electricity_price
+
+. format Electricity_price %9.2f
+
+. forvalues i=1(1)6{
+  2. format v`i' %9.2f if v`i'!=0
+  3. }
+
+. rename v1 East_Central
+
+. rename v2 North_Central
+
+. rename v3 Northeast
+
+. rename v4 South_Central
+
+. rename v5 Southeast
+
+. rename v6 West
+
+. save ./output/tables/Table3.dta,replace
+(note: file ./output/tables/Table3.dta not found)
+file ./output/tables/Table3.dta saved
+
+. 
+. 
+. *********************************************************************************
+. * TABLE 4: IPM Results: Emissions and Abatement Costs of Royalty Surcharge *********
+. *********************************************************************************
+. use ./intermediate_data/Total_US_CO2_Emissions_P,clear
+
+. keep Scenario scenario Emission5
+
+. gen Delta = Emission5-Emission5[1]
+
+. gen percent = Delta/Emission5[1]
+
+. save ./intermediate_data/Table4_col1to3.dta,replace
+(note: file ./intermediate_data/Table4_col1to3.dta not found)
+file ./intermediate_data/Table4_col1to3.dta saved
+
+. 
+. * Coal Production
+. use ./intermediate_data/PRB_Coal_Production_P.dta, clear
+
+. drop if _n==1|_n==5|_n==7|_n==9|_n==13
+(5 observations deleted)
+
+. xpose,clear format varname
+
+. rename v1 Prod_CO_Raton
+
+. rename v2 Prod_CO_SanJuan
+
+. rename v3 Prod_CO_Uinta
+
+. rename v4 Prod_UT
+
+. rename v5 Prod_MT
+
+. rename v6 Prod_WY_Green
+
+. rename v7 Prod_WY_Low
+
+. rename v8 Prod_WY_Powder
+
+. 
+. gen Year=2016 if strpos(_varname,"2016")
+(73 missing values generated)
+
+. replace Year=2018 if strpos(_varname,"2018")
+(12 real changes made)
+
+. replace Year=2020 if strpos(_varname,"2020")
+(12 real changes made)
+
+. replace Year=2025 if strpos(_varname,"2025")
+(12 real changes made)
+
+. replace Year=2030 if strpos(_varname,"2030")
+(12 real changes made)
+
+. replace Year=2040 if strpos(_varname,"2040")
+(12 real changes made)
+
+. replace Year=2050 if strpos(_varname,"2050")
+(12 real changes made)
+
+. gen scenario=1 if strpos(_varname,"Base")
+(57 missing values generated)
+
+. replace scenario=2 if strpos(_varname,"Base_SCC20")
+(7 real changes made)
+
+. replace scenario=3 if strpos(_varname,"Base_SCC50")
+(7 real changes made)
+
+. replace scenario=4 if strpos(_varname,"Base_SCC100")
+(7 real changes made)
+
+. replace scenario=5 if strpos(_varname,"CPP_Mass")
+(28 real changes made)
+
+. replace scenario=6 if strpos(_varname,"CPP_Mass_SCC20")
+(7 real changes made)
+
+. replace scenario=7 if strpos(_varname,"CPP_Mass_SCC50")
+(7 real changes made)
+
+. replace scenario=8 if strpos(_varname,"CPP_Mass_SCC100")
+(7 real changes made)
+
+. replace scenario=9 if strpos(_varname,"CPP_Rate")
+(28 real changes made)
+
+. replace scenario=10 if strpos(_varname,"CPP_Rate_SCC20")
+(7 real changes made)
+
+. replace scenario=11 if strpos(_varname,"CPP_Rate_SCC50")
+(7 real changes made)
+
+. replace scenario=12 if strpos(_varname,"CPP_Rate_SCC100")
+(7 real changes made)
+
+. drop in 1
+(1 observation deleted)
+
+. save ./intermediate_data/Table4_Production.dta,replace
+(note: file ./intermediate_data/Table4_Production.dta not found)
+file ./intermediate_data/Table4_Production.dta saved
+
+. 
+. * Mine mouth price
+. use ./intermediate_data/Mine_mouth_price_P.dta,clear
+
+. xpose,clear format varname
+
+. rename v1 Price_CO
+
+. rename v2 Price_UT
+
+. rename v3 Price_MT
+
+. rename v4 Price_WY_8400
+
+. rename v5 Price_WY_8800
+
+. 
+. gen Year=2016 if strpos(_varname,"2016")
+(73 missing values generated)
+
+. replace Year=2018 if strpos(_varname,"2018")
+(12 real changes made)
+
+. replace Year=2020 if strpos(_varname,"2020")
+(12 real changes made)
+
+. replace Year=2025 if strpos(_varname,"2025")
+(12 real changes made)
+
+. replace Year=2030 if strpos(_varname,"2030")
+(12 real changes made)
+
+. replace Year=2040 if strpos(_varname,"2040")
+(12 real changes made)
+
+. replace Year=2050 if strpos(_varname,"2050")
+(12 real changes made)
+
+. gen scenario=1 if strpos(_varname,"Base")
+(57 missing values generated)
+
+. replace scenario=2 if strpos(_varname,"Base_SCC20")
+(7 real changes made)
+
+. replace scenario=3 if strpos(_varname,"Base_SCC50")
+(7 real changes made)
+
+. replace scenario=4 if strpos(_varname,"Base_SCC100")
+(7 real changes made)
+
+. replace scenario=5 if strpos(_varname,"CPP_Mass")
+(28 real changes made)
+
+. replace scenario=6 if strpos(_varname,"CPP_Mass_SCC20")
+(7 real changes made)
+
+. replace scenario=7 if strpos(_varname,"CPP_Mass_SCC50")
+(7 real changes made)
+
+. replace scenario=8 if strpos(_varname,"CPP_Mass_SCC100")
+(7 real changes made)
+
+. replace scenario=9 if strpos(_varname,"CPP_Rate")
+(28 real changes made)
+
+. replace scenario=10 if strpos(_varname,"CPP_Rate_SCC20")
+(7 real changes made)
+
+. replace scenario=11 if strpos(_varname,"CPP_Rate_SCC50")
+(7 real changes made)
+
+. replace scenario=12 if strpos(_varname,"CPP_Rate_SCC100")
+(7 real changes made)
+
+. drop in 1
+(1 observation deleted)
+
+. save ./intermediate_data/Table4_minemouth_price.dta,replace
+(note: file ./intermediate_data/Table4_minemouth_price.dta not found)
+file ./intermediate_data/Table4_minemouth_price.dta saved
+
+. 
+. * Coal royalty payments on Federal lands, minemouth price portion
+. use ./intermediate_data/Table4_Production.dta,clear
+
+. merge 1:1 Year scenario using ./intermediate_data/Table4_minemouth_price.dta
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                84  (_merge==3)
+    -----------------------------------------
+
+. drop _merge
+
+. 
+. gen Pmnts_CO_Raton=0.08*Prod_CO_Raton*Price_CO
+
+. gen Pmnts_CO_SanJuan=0.08*Prod_CO_SanJuan*Price_CO
+
+. gen Pmnts_CO_Uinta=0.08*Prod_CO_Uinta*Price_CO
+
+. gen Pmnts_UT=0.08*Prod_UT*Price_UT
+
+. gen Pmnts_MT=0.125*Prod_MT*Price_MT
+
+. gen Pmnts_WY_Green=0.125*Prod_WY_Green*Price_WY_8800
+
+. gen Pmnts_WY_Low=0.125*Prod_WY_Low*Price_WY_8400
+
+. gen Pmnts_WY_Powder=0.125*Prod_WY_Powder*Price_WY_8800
+
+. keep Pmnts* _varname
+
+. 
+. gen Year=2016 if strpos(_varname,"2016")
+(72 missing values generated)
+
+. replace Year=2018 if strpos(_varname,"2018")
+(12 real changes made)
+
+. replace Year=2020 if strpos(_varname,"2020")
+(12 real changes made)
+
+. replace Year=2025 if strpos(_varname,"2025")
+(12 real changes made)
+
+. replace Year=2030 if strpos(_varname,"2030")
+(12 real changes made)
+
+. replace Year=2040 if strpos(_varname,"2040")
+(12 real changes made)
+
+. replace Year=2050 if strpos(_varname,"2050")
+(12 real changes made)
+
+. gen scenario=1 if strpos(_varname,"Base")
+(56 missing values generated)
+
+. replace scenario=2 if strpos(_varname,"Base_SCC20")
+(7 real changes made)
+
+. replace scenario=3 if strpos(_varname,"Base_SCC50")
+(7 real changes made)
+
+. replace scenario=4 if strpos(_varname,"Base_SCC100")
+(7 real changes made)
+
+. replace scenario=5 if strpos(_varname,"CPP_Mass")
+(28 real changes made)
+
+. replace scenario=6 if strpos(_varname,"CPP_Mass_SCC20")
+(7 real changes made)
+
+. replace scenario=7 if strpos(_varname,"CPP_Mass_SCC50")
+(7 real changes made)
+
+. replace scenario=8 if strpos(_varname,"CPP_Mass_SCC100")
+(7 real changes made)
+
+. replace scenario=9 if strpos(_varname,"CPP_Rate")
+(28 real changes made)
+
+. replace scenario=10 if strpos(_varname,"CPP_Rate_SCC20")
+(7 real changes made)
+
+. replace scenario=11 if strpos(_varname,"CPP_Rate_SCC50")
+(7 real changes made)
+
+. replace scenario=12 if strpos(_varname,"CPP_Rate_SCC100")
+(7 real changes made)
+
+. 
+. save ./intermediate_data/Table4_Pmnts_minemouth.dta,replace
+(note: file ./intermediate_data/Table4_Pmnts_minemouth.dta not found)
+file ./intermediate_data/Table4_Pmnts_minemouth.dta saved
+
+. 
+. * Coal roylaty payments on federal lands, adder portion
+. use ./intermediate_data/Table2_surcharge.dta,clear 
+
+. keep if Year==2016|Year==2018|Year==2020|Year==2025|Year==2030|Year==2040|Year==2050
+(29 observations deleted)
+
+. keep Year RSCC2012_100
+
+. forvalues i = 1/12{
+  2. gen SCC_surcharge`i'=RSCC2012_100
+  3. }
+
+. reshape long SCC_surcharge, i(Year) j(scenario)
+(note: j = 1 2 3 4 5 6 7 8 9 10 11 12)
+
+Data                               wide   ->   long
+-----------------------------------------------------------------------------
+Number of obs.                        7   ->      84
+Number of variables                  14   ->       4
+j variable (12 values)                    ->   scenario
+xij variables:
+SCC_surcharge1 SCC_surcharge2 ... SCC_surcharge12->SCC_surcharge
+-----------------------------------------------------------------------------
+
+. sort scenario Year
+
+. 
+. gen sur_rate = 0
+
+. replace sur_rate = 0.2 if scenario==2 | scenario==6 | scenario==10
+(21 real changes made)
+
+. replace sur_rate = 0.5 if scenario==3 | scenario==7 | scenario==11
+(21 real changes made)
+
+. replace sur_rate = 1.0 if scenario==4 | scenario==8 | scenario==12
+(21 real changes made)
+
+. 
+. gen Ramped_surcharge = SCC_surcharge*sur_rate
+
+. keep Year scenario Ramped_surcharge
+
+. merge 1:1 Year scenario using ./intermediate_data/Table4_Production.dta
+(note: variable scenario was byte, now float to accommodate using data's values)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                84  (_merge==3)
+    -----------------------------------------
+
+. drop _merge
+
+. 
+. gen Pmnts_CO_Raton_adder = Prod_CO_Raton*Ramped
+
+. gen Pmnts_CO_SanJuan_adder=Prod_CO_SanJuan*Ramped
+
+. gen Pmnts_CO_Uinta_adder=Prod_CO_Uinta*Ramped
+
+. gen Pmnts_UT_adder=Prod_UT*Ramped
+
+. gen Pmnts_MT_adder=Prod_MT*Ramped
+
+. gen Pmnts_WY_Green_adder=Prod_WY_Green*Ramped
+
+. gen Pmnts_WY_Low_adder=Prod_WY_Low*Ramped
+
+. gen Pmnts_WY_Powder_adder=Prod_WY_Powder*Ramped
+
+. 
+. keep _varname Year scenario Pmnts*
+
+. save ./intermediate_data/Table4_Pmnts_adder.dta,replace
+(note: file ./intermediate_data/Table4_Pmnts_adder.dta not found)
+file ./intermediate_data/Table4_Pmnts_adder.dta saved
+
+. 
+. * Total Royalty
+. use ./intermediate_data/Table4_Pmnts_minemouth.dta,clear
+
+. merge 1:1 Year scenario using ./intermediate_data/Table4_Pmnts_adder.dta
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                84  (_merge==3)
+    -----------------------------------------
+
+. drop _merge
+
+. 
+. foreach x in "CO_Raton" "CO_SanJuan" "CO_Uinta" "UT" "MT" "WY_Green" "WY_Low" "WY_Powder" {
+  2. gen Royalty_`x'=Pmnts_`x'+Pmnts_`x'_adder
+  3. }
+
+. 
+. keep _varname Year scenario Royalty*
+
+. save ./intermediate_data/Table4_Total_royalty.dta,replace
+(note: file ./intermediate_data/Table4_Total_royalty.dta not found)
+file ./intermediate_data/Table4_Total_royalty.dta saved
+
+. 
+. * State subtotals
+. use ./intermediate_data/Table4_Production.dta,replace
+
+. gen Prod_CO = Prod_CO_Raton+Prod_CO_SanJuan+Prod_CO_Uinta
+
+. gen Prod_WY = Prod_WY_Green+Prod_WY_Low+Prod_WY_Powder
+
+. keep _varname Year scenario Prod_CO Prod_UT Prod_MT Prod_WY
+
+. save ./intermediate_data/Table4_Production_State.dta,replace
+(note: file ./intermediate_data/Table4_Production_State.dta not found)
+file ./intermediate_data/Table4_Production_State.dta saved
+
+. 
+. use ./intermediate_data/Table4_Total_royalty.dta,clear
+
+. gen Royalty_CO = Royalty_CO_Raton+Royalty_CO_SanJuan+Royalty_CO_Uinta
+
+. gen Royalty_WY = Royalty_WY_Green+Royalty_WY_Low+Royalty_WY_Powder
+
+. keep _varname Year scenario Royalty_CO Royalty_UT Royalty_MT Royalty_WY
+
+. gen Total = Royalty_CO+Royalty_UT+Royalty_MT+Royalty_WY
+
+. save ./intermediate_data/Table4_Royalty_State.dta,replace
+(note: file ./intermediate_data/Table4_Royalty_State.dta not found)
+file ./intermediate_data/Table4_Royalty_State.dta saved
+
+. 
+. * Total Royalty in different scenarios
+. use ./intermediate_data/Table4_Royalty_State.dta,clear
+
+. keep Year scenario Total
+
+. replace Year=1 if Year==2016
+(12 real changes made)
+
+. replace Year=2 if Year==2018
+(12 real changes made)
+
+. replace Year=3 if Year==2020
+(12 real changes made)
+
+. replace Year=4 if Year==2025
+(12 real changes made)
+
+. replace Year=5 if Year==2030
+(12 real changes made)
+
+. replace Year=6 if Year==2040
+(12 real changes made)
+
+. replace Year=7 if Year==2050
+(12 real changes made)
+
+. reshape wide Total, i(scenario) j(Year)
+(note: j = 1 2 3 4 5 6 7)
+
+Data                               long   ->   wide
+-----------------------------------------------------------------------------
+Number of obs.                       84   ->      12
+Number of variables                   3   ->       8
+j variable (7 values)              Year   ->   (dropped)
+xij variables:
+                                  Total   ->   Total1 Total2 ... Total7
+-----------------------------------------------------------------------------
+
+. save ./intermediate_data/Table4_Total_royalty_wide.dta,replace
+(note: file ./intermediate_data/Table4_Total_royalty_wide.dta not found)
+file ./intermediate_data/Table4_Total_royalty_wide.dta saved
+
+. 
+. * Abatement cost calculation
+. use ./intermediate_data/Total_Production_Costs_P.dta,clear
+
+. rename Year1 PC1
+
+. rename Year2 PC2
+
+. rename Year3 PC3
+
+. rename Year4 PC4
+
+. rename Year5 PC5
+
+. rename Year6 PC6
+
+. rename Year7 PC7
+
+. merge 1:1 scenario using ./intermediate_data/Table4_Total_royalty_wide.dta
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                12  (_merge==3)
+    -----------------------------------------
+
+. drop _merge
+
+. * Net production cost = Total production costs-Total Royalties
+. gen NC1=PC1-Total1
+
+. gen NC2=PC2-Total2
+
+. gen NC3=PC3-Total3
+
+. gen NC4=PC4-Total4
+
+. gen NC5=PC5-Total5
+
+. gen NC6=PC6-Total6
+
+. gen NC7=PC7-Total7
+
+. * Delta net production costs relative to CPP base case
+. forvalues i=1(1)7{
+  2. gen D_NC`i'=NC`i'-NC`i'[1] in 1/4
+  3. replace D_NC`i'=NC`i'-NC`i'[5] in 5/8
+  4. replace D_NC`i'=NC`i'-NC`i'[9] in 9/12
+  5. }
+(8 missing values generated)
+(4 real changes made)
+(4 real changes made)
+(8 missing values generated)
+(4 real changes made)
+(4 real changes made)
+(8 missing values generated)
+(4 real changes made)
+(4 real changes made)
+(8 missing values generated)
+(4 real changes made)
+(4 real changes made)
+(8 missing values generated)
+(4 real changes made)
+(4 real changes made)
+(8 missing values generated)
+(4 real changes made)
+(4 real changes made)
+(8 missing values generated)
+(4 real changes made)
+(4 real changes made)
+
+. keep scenario Scenario D*
+
+. save ./intermediate_data/Table4_Delta_Net_Costs.dta,replace
+(note: file ./intermediate_data/Table4_Delta_Net_Costs.dta not found)
+file ./intermediate_data/Table4_Delta_Net_Costs.dta saved
+
+. * Delta emissions relative to CPP base case
+. use ./intermediate_data/Total_US_CO2_Emissions_P.dta,clear
+
+. forvalues i=1(1)7{
+  2. gen D_Emission`i'=Emission`i'-Emission`i'[1] in 1/4
+  3. replace D_Emission`i'=Emission`i'-Emission`i'[5] in 5/8
+  4. replace D_Emission`i'=Emission`i'-Emission`i'[9] in 9/12
+  5. }
+(8 missing values generated)
+(4 real changes made)
+(4 real changes made)
+(8 missing values generated)
+(4 real changes made)
+(4 real changes made)
+(8 missing values generated)
+(4 real changes made)
+(4 real changes made)
+(8 missing values generated)
+(4 real changes made)
+(4 real changes made)
+(8 missing values generated)
+(4 real changes made)
+(4 real changes made)
+(8 missing values generated)
+(4 real changes made)
+(4 real changes made)
+(8 missing values generated)
+(4 real changes made)
+(4 real changes made)
+
+. keep scenario Scenario D*
+
+. save ./intermediate_data/Table4_Delta_Emissions.dta,replace
+(note: file ./intermediate_data/Table4_Delta_Emissions.dta not found)
+file ./intermediate_data/Table4_Delta_Emissions.dta saved
+
+. * Abatement cost (2012$/metric ton CO2)
+. use ./intermediate_data/Table4_Delta_Net_Costs.dta, clear
+
+. merge 1:1 Scenario using ./intermediate_data/Table4_Delta_Emissions.dta
+(note: variable Scenario was str31, now str44 to accommodate using data's values)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                12  (_merge==3)
+    -----------------------------------------
+
+. drop _merge
+
+. forvalues i=1(1)7{
+  2. gen Abmnt_Cost`i'=-D_NC`i'/D_Emission`i' in 2/4
+  3. replace Abmnt_Cost`i'=-D_NC`i'/D_Emission`i' in 6/8
+  4. replace Abmnt_Cost`i'=-D_NC`i'/D_Emission`i' in 10/12
+  5. }
+(9 missing values generated)
+(3 real changes made)
+(3 real changes made)
+(9 missing values generated)
+(3 real changes made)
+(3 real changes made)
+(9 missing values generated)
+(3 real changes made)
+(3 real changes made)
+(9 missing values generated)
+(3 real changes made)
+(3 real changes made)
+(9 missing values generated)
+(3 real changes made)
+(3 real changes made)
+(9 missing values generated)
+(3 real changes made)
+(3 real changes made)
+(9 missing values generated)
+(3 real changes made)
+(3 real changes made)
+
+. sort scenario
+
+. keep Scenario scenario Abmnt*
+
+. save ./intermediate_data/Table4_Abatement_Costs.dta,replace
+(note: file ./intermediate_data/Table4_Abatement_Costs.dta not found)
+file ./intermediate_data/Table4_Abatement_Costs.dta saved
+
+. 
+. use ./intermediate_data/SCC, clear
+
+. gen SCC_in2012=SCC*`Infl07_12'
+
+. keep if Year==2025 | Year==2030
+(34 observations deleted)
+
+. keep Year SCC_in2012
+
+. xpose, clear varname
+
+. save ./intermediate_data/Table4_Memo.dta,replace
+(note: file ./intermediate_data/Table4_Memo.dta not found)
+file ./intermediate_data/Table4_Memo.dta saved
+
+. 
+. * Table 4 datafile
+. use ./intermediate_data/Table4_col1to3, clear
+
+. merge 1:1 scenario using ./intermediate_data/Table4_Abatement_Costs
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                12  (_merge==3)
+    -----------------------------------------
+
+. drop _merge
+
+. keep Scenario Emission5 Delta percent Abmnt_Cost4 Abmnt_Cost5
+
+. format Emission5 %9.3gc
+
+. format Abmnt* %9.0f
+
+. replace Delta=. if Delta==0
+(1 real change made, 1 to missing)
+
+. replace percent=. if percent==0
+(1 real change made, 1 to missing)
+
+. save ./output/tables/Table4.dta, replace
+(note: file ./output/tables/Table4.dta not found)
+file ./output/tables/Table4.dta saved
+
+. 
+. *********************************************************************************
+. * TABLE 5: IPM Results: Generation Mix and PRB Coal Production                  *
+. *********************************************************************************
+. * Generation Mix
+. use ./intermediate_data/Generation_Mix_P, clear
+
+. xpose,clear varname
+
+. 
+. gen Year=2016 if strpos(_varname,"2016")
+(73 missing values generated)
+
+. replace Year=2018 if strpos(_varname,"2018")
+(12 real changes made)
+
+. replace Year=2020 if strpos(_varname,"2020")
+(12 real changes made)
+
+. replace Year=2025 if strpos(_varname,"2025")
+(12 real changes made)
+
+. replace Year=2030 if strpos(_varname,"2030")
+(12 real changes made)
+
+. replace Year=2040 if strpos(_varname,"2040")
+(12 real changes made)
+
+. replace Year=2050 if strpos(_varname,"2050")
+(12 real changes made)
+
+. gen scenario=1 if strpos(_varname,"Base")
+(57 missing values generated)
+
+. replace scenario=2 if strpos(_varname,"Base_SCC20")
+(7 real changes made)
+
+. replace scenario=3 if strpos(_varname,"Base_SCC50")
+(7 real changes made)
+
+. replace scenario=4 if strpos(_varname,"Base_SCC100")
+(7 real changes made)
+
+. replace scenario=5 if strpos(_varname,"CPP_Mass")
+(28 real changes made)
+
+. replace scenario=6 if strpos(_varname,"CPP_Mass_SCC20")
+(7 real changes made)
+
+. replace scenario=7 if strpos(_varname,"CPP_Mass_SCC50")
+(7 real changes made)
+
+. replace scenario=8 if strpos(_varname,"CPP_Mass_SCC100")
+(7 real changes made)
+
+. replace scenario=9 if strpos(_varname,"CPP_Rate")
+(28 real changes made)
+
+. replace scenario=10 if strpos(_varname,"CPP_Rate_SCC20")
+(7 real changes made)
+
+. replace scenario=11 if strpos(_varname,"CPP_Rate_SCC50")
+(7 real changes made)
+
+. replace scenario=12 if strpos(_varname,"CPP_Rate_SCC100")
+(7 real changes made)
+
+. drop in 1
+(1 observation deleted)
+
+. 
+. rename v1 Biomass
+
+. rename v2 CC_Existing
+
+. rename v3 CC_New
+
+. rename v4 Coal
+
+. rename v5 CT_Existing
+
+. rename v6 CT_New
+
+. rename v7 Geothermal
+
+. rename v8 Hydro
+
+. rename v9 Landfill
+
+. rename v10 Nuclear
+
+. rename v11 Oil_Gas
+
+. rename v12 Other
+
+. rename v13 Solar 
+
+. rename v14 Wind
+
+. rename v15 Total
+
+. rename v16 EE
+
+. 
+. gen Gas=CC_Existing+CC_New+CT_Existing+CT_New
+
+. gen Solar_Wind=Solar+Wind
+
+. gen New_Gas=CC_New+CT_New
+
+. 
+. keep if Year==2030
+(72 observations deleted)
+
+. keep _varname Coal Gas Solar_Wind New_Gas 
+
+. rename _varname Scenario
+
+. order Scenario, first
+
+. replace Coal = Coal/1000
+(12 real changes made)
+
+. replace Gas = Gas/1000
+(12 real changes made)
+
+. replace Solar_Wind = Solar_Wind/1000
+(12 real changes made)
+
+. replace New_Gas = New_Gas/1000
+(12 real changes made)
+
+. format Coal Gas Solar_Wind New_Gas %12.3gc
+
+. generate scenario=_n
+
+. save ./intermediate_data/Table5_Generation_Mix.dta, replace
+(note: file ./intermediate_data/Table5_Generation_Mix.dta not found)
+file ./intermediate_data/Table5_Generation_Mix.dta saved
+
+. 
+. * Coal Production by Basin
+. use ./intermediate_data/Coal_Prod_Basin_P, clear
+
+. keep in 4
+(6 observations deleted)
+
+. keep Basin P2030* 
+
+. xpose, clear varname
+
+. drop in 1
+(1 observation deleted)
+
+. rename _varname Scenario
+
+. rename v1 PRB_Coal_Prod
+
+. order Scenario, first
+
+. 
+. gen Change_PRB=PRB-PRB[1] in 2/4
+(9 missing values generated)
+
+. replace Change_PRB=PRB-PRB[5] in 6/8
+(3 real changes made)
+
+. replace Change_PRB=PRB-PRB[9] in 10/12
+(3 real changes made)
+
+. 
+. gen Change_PRB_percent=PRB/PRB[1]-1 in 2/4
+(9 missing values generated)
+
+. replace Change_PRB_percent=PRB/PRB[5]-1 in 6/8
+(3 real changes made)
+
+. replace Change_PRB_percent=PRB/PRB[9]-1 in 10/12
+(3 real changes made)
+
+. format PRB Change_PRB %9.0f
+
+. save ./intermediate_data/Table5_PRB.dta,replace
+(note: file ./intermediate_data/Table5_PRB.dta not found)
+file ./intermediate_data/Table5_PRB.dta saved
+
+. 
+. use ./intermediate_data/Table5_Generation_Mix
+
+. merge 1:1 Scenario using ./intermediate_data/Table5_PRB
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                12  (_merge==3)
+    -----------------------------------------
+
+. drop _merge
+
+. sort scenario
+
+. drop scenario
+
+. save ./output/tables/Table5.dta,replace
+(note: file ./output/tables/Table5.dta not found)
+file ./output/tables/Table5.dta saved
+
+. 
+. *********************************************************************************
+. *TABLE 6: IPM Results: Comparison of Royalty Surcharge and Quantity Limit Cases *
+. *********************************************************************************
+. use ./intermediate_data/Total_US_CO2_Emissions_S, clear
+
+. drop if strpos(Scenario,"50%")
+(3 observations deleted)
+
+. keep Scenario Emission6
+
+. replace Emission6=round(Emission6,1)
+(9 real changes made)
+
+. drop if strpos(Scenario,"CPP Rate")
+(3 observations deleted)
+
+. xpose,clear varname
+
+. rename v1 CPP1 
+
+. rename v2 CPP2
+
+. rename v3 CPP3
+
+. rename v4 CPP_Mass1
+
+. rename v5 CPP_Mass2
+
+. rename v6 CPP_Mass3
+
+. drop in 1
+(1 observation deleted)
+
+. replace _varname="Emissions" in 1
+(1 real change made)
+
+. tempfile Table6_Emissions_S
+
+. save `Table6_Emissions_S'
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.000006 saved
+
+. 
+. use ./intermediate_data/Total_US_CO2_Emissions_L, clear
+
+. keep Scenario Emission6
+
+. replace Emission6=round(Emission6,1)
+(6 real changes made)
+
+. drop if Scenario=="Base Case"
+(1 observation deleted)
+
+. drop if Scenario=="CPP Base Case"
+(1 observation deleted)
+
+. xpose,clear varname
+
+. drop in 1
+(1 observation deleted)
+
+. rename v1 CPP_NoLimit 
+
+. rename v2 CPP_Cap50
+
+. rename v3 CPP_Mass_NoLimit
+
+. rename v4 CPP_Mass_Cap50
+
+. order CPP_NoLimit, after(CPP_Cap50)
+
+. order CPP_Mass_NoLimit, after(CPP_Mass_Cap50)
+
+. replace _varname="Emissions" in 1
+(1 real change made)
+
+. tempfile Table6_Emissions_L
+
+. save `Table6_Emissions_L'
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.000007 saved
+
+. 
+. use ./intermediate_data/Coal_Prod_Basin_S, clear
+
+. keep if strpos(Basin,"PRB") | strpos(Basin,"Total")
+(5 observations deleted)
+
+. keep Basin P2040* 
+
+. drop P2040_*SCC50 P2040*Rate*
+
+. rename P2040_Base CPP1
+
+. rename P2040_Base_SCC20 CPP2
+
+. rename P2040_Base_SCC100 CPP3
+
+. rename P2040_CPP_Mass CPP_Mass1
+
+. rename P2040_CPP_Mass_SCC20 CPP_Mass2
+
+. rename P2040_CPP_Mass_SCC100 CPP_Mass3
+
+. rename Basin _varname
+
+. tempfile Table6_Productions_S
+
+. save `Table6_Productions_S'
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.000008 saved
+
+. 
+. use ./intermediate_data/Coal_Prod_Basin_L, clear
+
+. keep if strpos(Basin,"PRB") | strpos(Basin,"Total")
+(5 observations deleted)
+
+. keep Basin P2040* 
+
+. drop P2040*1
+
+. rename P2040_Base2 CPP_NoLimit 
+
+. rename P2040_Base3 CPP_Cap50
+
+. rename P2040_CPP_Mass2 CPP_Mass_NoLimit
+
+. rename P2040_CPP_Mass3 CPP_Mass_Cap50
+
+. order CPP_NoLimit, after(CPP_Cap50)
+
+. order CPP_Mass_NoLimit, after(CPP_Mass_Cap50)
+
+. rename Basin _varname
+
+. tempfile Table6_Productions_L
+
+. save `Table6_Productions_L'
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.000009 saved
+
+. 
+. use ./intermediate_data/Firm_Wholesale_Power_Prices_S, clear
+
+. drop if strpos(Scenario,"50%")
+(3 observations deleted)
+
+. keep Scenario Year6
+
+. drop if strpos(Scenario,"CPP Rate")
+(3 observations deleted)
+
+. xpose,clear varname
+
+. rename v1 CPP1 
+
+. rename v2 CPP2
+
+. rename v3 CPP3
+
+. rename v4 CPP_Mass1
+
+. rename v5 CPP_Mass2
+
+. rename v6 CPP_Mass3
+
+. drop in 1
+(1 observation deleted)
+
+. local new=_N+1
+
+. set obs `new'
+number of observations (_N) was 1, now 2
+
+. replace _varname="Wholesale_electricity_price" in 1
+variable _varname was str8 now str27
+(1 real change made)
+
+. replace _varname="Allowance price" in 2
+(1 real change made)
+
+. tempfile Table6_Wholesale_prices_S
+
+. save `Table6_Wholesale_prices_S'
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.00000a saved
+
+. 
+. use ./intermediate_data/Firm_Wholesale_Power_Prices_L, clear
+
+. keep Scenario Year6
+
+. drop if Scenario=="Base Case"
+(1 observation deleted)
+
+. drop if Scenario=="CPP Base Case"
+(1 observation deleted)
+
+. xpose,clear varname
+
+. drop in 1
+(1 observation deleted)
+
+. rename v1 CPP_NoLimit 
+
+. rename v2 CPP_Cap50
+
+. rename v3 CPP_Mass_NoLimit
+
+. rename v4 CPP_Mass_Cap50
+
+. order CPP_NoLimit, after(CPP_Cap50)
+
+. order CPP_Mass_NoLimit, after(CPP_Mass_Cap50)
+
+. local new=_N+1
+
+. set obs `new'
+number of observations (_N) was 1, now 2
+
+. replace _varname="Wholesale_electricity_price" in 1
+variable _varname was str8 now str27
+(1 real change made)
+
+. replace _varname="Allowance price" in 2
+(1 real change made)
+
+. tempfile Table6_Wholesale_prices_L
+
+. save `Table6_Wholesale_prices_L'
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.00000b saved
+
+. 
+. use ./intermediate_data/CO2_Allowance_Price_S, clear
+
+. keep Region Scenario P2040*
+
+. keep if strpos(Region,"North Central")|strpos(Region,"South Central")|strpos(Region,"Southeast")
+(6 observations deleted)
+
+. keep if strpos(Scenario,"CPP_Mass")
+(3 observations deleted)
+
+. drop P2040_SCC50
+
+. rename P2040 CPP_Mass1
+
+. rename P2040_SCC20 CPP_Mass2
+
+. rename P2040_SCC100 CPP_Mass3
+
+. gen CPP1=.
+(3 missing values generated)
+
+. gen CPP2=.
+(3 missing values generated)
+
+. gen CPP3=.
+(3 missing values generated)
+
+. drop Scenario
+
+. rename Region _varname
+
+. order CPP1, after(_varname)
+
+. order CPP2, after(CPP1)
+
+. order CPP3, after(CPP2)
+
+. local new=_N+1
+
+. set obs `new'
+number of observations (_N) was 3, now 4
+
+. replace _varname="North Central" in 1
+(1 real change made)
+
+. replace _varname="South Central" in 2
+(1 real change made)
+
+. replace _varname="Southeast" in 3
+(1 real change made)
+
+. replace _varname="Generation (TWh)" in 4
+(1 real change made)
+
+. tempfile Table6_Allowance_prices_S
+
+. save `Table6_Allowance_prices_S'
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.00000c saved
+
+. 
+. use ./intermediate_data/CO2_Allowance_Price_L, clear
+
+. keep Region P2040*
+
+. keep if strpos(Region,"North Central")|strpos(Region,"South Central")|strpos(Region,"Southeast")
+(3 observations deleted)
+
+. drop P2040_Base1
+
+. rename P2040_Base2 CPP_Mass_NoLimit 
+
+. rename P2040_Base3 CPP_Mass_Cap50
+
+. order CPP_Mass_NoLimit, after(CPP_Mass_Cap50)
+
+. rename Region _varname
+
+. replace CPP_Mass_Cap50=round(CPP_Mass_Cap50,0.01)
+(3 real changes made)
+
+. replace CPP_Mass_NoLimit=round(CPP_Mass_NoLimit,0.01)
+(3 real changes made)
+
+. local new=_N+1
+
+. set obs `new'
+number of observations (_N) was 3, now 4
+
+. replace _varname="North Central" in 1
+(1 real change made)
+
+. replace _varname="South Central" in 2
+(1 real change made)
+
+. replace _varname="Southeast" in 3
+(1 real change made)
+
+. replace _varname="Generation (TWh)" in 4
+(1 real change made)
+
+. tempfile Table6_Allowance_prices_L
+
+. save `Table6_Allowance_prices_L'
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.00000d saved
+
+. 
+. use ./intermediate_data/Generation_Mix_S, clear
+
+. keep Energy P2040*
+
+. drop P2040_*SCC50 P2040*Rate*
+
+. keep if strpos(Energy,"CC - New")| strpos(Energy,"Solar")| strpos(Energy,"Wind")
+(13 observations deleted)
+
+. xpose,clear varname
+
+. rename v1 CC_New
+
+. rename v2 Solar
+
+. rename v3 Wind
+
+. drop in 1
+(1 observation deleted)
+
+. gen Solar_Wind=Solar+Wind
+
+. replace Solar_Wind=Solar_Wind/1000
+(6 real changes made)
+
+. replace CC_New=CC_New/1000
+(6 real changes made)
+
+. keep CC_New Solar_Wind _varname 
+
+. xpose,clear varname
+
+. rename P2040_Base CPP1
+
+. rename P2040_Base_SCC20 CPP2
+
+. rename P2040_Base_SCC100 CPP3
+
+. rename P2040_CPP_Mass CPP_Mass1
+
+. rename P2040_CPP_Mass_SCC20 CPP_Mass2
+
+. rename P2040_CPP_Mass_SCC100 CPP_Mass3
+
+. gsort -_varname
+
+. tempfile Table6_Generation_S
+
+. save `Table6_Generation_S'
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.00000e saved
+
+. 
+. use ./intermediate_data/Generation_Mix_L, clear
+
+. keep Energy P2040*
+
+. drop P2040*1
+
+. keep if strpos(Energy,"CC - New")| strpos(Energy,"Solar")| strpos(Energy,"Wind")
+(13 observations deleted)
+
+. xpose,clear varname
+
+. rename v1 CC_New
+
+. rename v2 Solar
+
+. rename v3 Wind
+
+. drop in 1
+(1 observation deleted)
+
+. gen Solar_Wind=Solar+Wind
+
+. replace Solar_Wind=Solar_Wind/1000
+(4 real changes made)
+
+. replace CC_New=CC_New/1000
+(4 real changes made)
+
+. keep CC_New Solar_Wind _varname 
+
+. xpose,clear varname
+
+. rename P2040_Base2 CPP_NoLimit 
+
+. rename P2040_Base3 CPP_Cap50
+
+. rename P2040_CPP_Mass2 CPP_Mass_NoLimit
+
+. rename P2040_CPP_Mass3 CPP_Mass_Cap50
+
+. order CPP_NoLimit, after(CPP_Cap50)
+
+. order CPP_Mass_NoLimit, after(CPP_Mass_Cap50)
+
+. gsort -_varname
+
+. tempfile Table6_Generation_L
+
+. save `Table6_Generation_L'
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.00000f saved
+
+. 
+. foreach x in "S" "L"{
+  2. use `Table6_Emissions_`x'',clear
+  3. append using `Table6_Productions_`x''
+  4. append using `Table6_Wholesale_prices_`x''
+  5. append using `Table6_Allowance_prices_`x''
+  6. append using `Table6_Generation_`x''
+  7. rename _varname Case
+  8. order Case, first
+  9. save ./intermediate_data/Table6_`x'.dta,replace
+ 10. }
+(note: variable _varname was str9, now str48 to accommodate using data's values)
+(note: variable CPP1 was float, now double to accommodate using data's values)
+(note: variable CPP2 was float, now double to accommodate using data's values)
+(note: variable CPP3 was float, now double to accommodate using data's values)
+(note: variable CPP_Mass1 was float, now double to accommodate using data's values)
+(note: variable CPP_Mass2 was float, now double to accommodate using data's values)
+(note: variable CPP_Mass3 was float, now double to accommodate using data's values)
+(note: file ./intermediate_data/Table6_S.dta not found)
+file ./intermediate_data/Table6_S.dta saved
+(note: variable _varname was str9, now str33 to accommodate using data's values)
+(note: variable CPP_Cap50 was float, now double to accommodate using data's values)
+(note: variable CPP_NoLimit was float, now double to accommodate using data's values)
+(note: variable CPP_Mass_Cap50 was float, now double to accommodate using data's values)
+(note: variable CPP_Mass_NoLimit was float, now double to accommodate using data's values)
+(note: file ./intermediate_data/Table6_L.dta not found)
+file ./intermediate_data/Table6_L.dta saved
+
+. 
+. use ./intermediate_data/Table6_S,clear
+
+. keep Case CPP_Mass*
+
+. rename CPP_Mass1 CPP1
+
+. rename CPP_Mass2 CPP2
+
+. rename CPP_Mass3 CPP3
+
+. tempfile Table6_Mass_S
+
+. save `Table6_Mass_S'
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.00000g saved
+
+. use ./intermediate_data/Table6_S,clear
+
+. keep Case CPP1 CPP2 CPP3
+
+. append using `Table6_Mass_S'
+
+. gen n=_n
+
+. tempfile Table6_S
+
+. save `Table6_S'
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.00000h saved
+
+. 
+. use ./intermediate_data/Table6_L,clear
+
+. keep Case CPP_Mass*
+
+. rename CPP_Mass_Cap50 CPP_Cap50
+
+. rename CPP_Mass_NoLimit CPP_NoLimit
+
+. tempfile Table6_Mass_L
+
+. save `Table6_Mass_L'
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.00000i saved
+
+. use ./intermediate_data/Table6_L,clear
+
+. keep Case CPP_Cap50 CPP_NoLimit
+
+. append using `Table6_Mass_L'
+
+. gen n=_n
+
+. tempfile Table6_L
+
+. save `Table6_L'
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.00000j saved
+
+. 
+. use `Table6_S',clear
+
+. merge 1:1 n using `Table6_L'
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                22  (_merge==3)
+    -----------------------------------------
+
+. drop _merge n
+
+. rename CPP1 Primary_No_surcharge
+
+. rename CPP2 Primary_SCC20
+
+. rename CPP3 Primary_SCC100
+
+. save ./output/tables/Table6.dta,replace
+(note: file ./output/tables/Table6.dta not found)
+file ./output/tables/Table6.dta saved
+
+. 
+. *********************************************************************************
+. *TABLE B.1: IPM Results: Comparison of the Primary and Secondary Base Case *
+. *********************************************************************************
+. foreach x in "P" "S"{
+  2. use ./intermediate_data/Total_US_CO2_Emissions_`x'.dta, clear
+  3. drop if strpos(Scenario,"50%")
+  4. keep Scenario Emission5
+  5. replace Emission5=round(Emission5,1)
+  6. format Emission5 %9.0fc
+  7. gen Delta=(Emission5-Emission5[1])/Emission5[1]
+  8. replace Delta=. in 1
+  9. xpose,clear varname
+ 10. rename v1 CPP1 
+ 11. rename v2 CPP2
+ 12. rename v3 CPP3
+ 13. rename v4 CPP_Mass1
+ 14. rename v5 CPP_Mass2
+ 15. rename v6 CPP_Mass3
+ 16. rename v7 CPP_Rate1
+ 17. rename v8 CPP_Rate2
+ 18. rename v9 CPP_Rate3
+ 19. drop in 1
+ 20. replace _varname="Emissions(MMT)" in 1
+ 21. replace _varname="Relative to No CPP, no surcharge (within base case)" in 2
+ 22. tempfile TableB1_Emissions_`x'
+ 23. save `TableB1_Emissions_`x''
+ 24. 
+. use ./intermediate_data/Coal_Prod_Basin_`x'.dta, clear
+ 25. keep if strpos(Basin,"PRB") | strpos(Basin,"Total")
+ 26. keep Basin P2030* 
+ 27. drop P2030_*SCC50
+ 28. rename P2030_Base CPP1
+ 29. rename P2030_Base_SCC20 CPP2
+ 30. rename P2030_Base_SCC100 CPP3
+ 31. rename P2030_CPP_Mass CPP_Mass1
+ 32. rename P2030_CPP_Mass_SCC20 CPP_Mass2
+ 33. rename P2030_CPP_Mass_SCC100 CPP_Mass3
+ 34. rename P2030_CPP_Rate CPP_Rate1
+ 35. rename P2030_CPP_Rate_SCC20 CPP_Rate2
+ 36. rename P2030_CPP_Rate_SCC100 CPP_Rate3
+ 37. rename Basin _varname
+ 38. replace _varname="PRB production (MST)" in 1
+ 39. replace _varname="Total coal production (MST)" in 2
+ 40. foreach y in "CPP" "CPP_Mass" "CPP_Rate"{
+ 41. forvalues j = 1(1)3{
+ 42. replace `y'`j'=round(`y'`j',1)
+ 43. }
+ 44. }
+ 45. tempfile TableB1_Productions_`x'
+ 46. save `TableB1_Productions_`x''
+ 47. 
+. use ./intermediate_data/Firm_Wholesale_Power_Prices_`x',clear
+ 48. drop if strpos(Scenario,"50% SCC")
+ 49. keep Scenario Year5
+ 50. xpose,clear varname 
+ 51. rename v1 CPP1 
+ 52. rename v2 CPP2
+ 53. rename v3 CPP3
+ 54. rename v4 CPP_Mass1
+ 55. rename v5 CPP_Mass2
+ 56. rename v6 CPP_Mass3
+ 57. rename v7 CPP_Rate1
+ 58. rename v8 CPP_Rate2
+ 59. rename v9 CPP_Rate3
+ 60. drop in 1
+ 61. local new=_N+1
+ 62. set obs `new'
+ 63. replace _varname="Wholesale_electricity_price" in 1
+ 64. replace _varname="Allowance price" in 2
+ 65. foreach y in "CPP" "CPP_Mass" "CPP_Rate"{
+ 66. forvalues j = 1(1)3{
+ 67. replace `y'`j'=round(`y'`j',0.01)
+ 68. }
+ 69. }
+ 70. tempfile TableB1_Wholesale_price_`x'
+ 71. save `TableB1_Wholesale_price_`x''
+ 72. 
+. use ./intermediate_data/CO2_Allowance_Price_`x',clear
+ 73. keep Region P2030*
+ 74. keep if strpos(Region,"North Central")|strpos(Region,"South Central")|strpos(Region,"Southeast")
+ 75. drop P2030_SCC50
+ 76. gen scenario=1 in 1/3
+ 77. replace scenario=2 in 4/6
+ 78. reshape wide P2030 P2030_SCC20 P2030_SCC100, i(Region) j(scenario)
+ 79. rename P20301 CPP_Mass1
+ 80. rename P2030_SCC201 CPP_Mass2
+ 81. rename P2030_SCC1001 CPP_Mass3
+ 82. rename P20302 CPP_Rate1
+ 83. rename P2030_SCC202 CPP_Rate2
+ 84. rename P2030_SCC1002 CPP_Rate3
+ 85. gen CPP1=.
+ 86. gen CPP2=.
+ 87. gen CPP3=.
+ 88. rename Region _varname
+ 89. order CPP1, after(_varname)
+ 90. order CPP2, after(CPP1)
+ 91. order CPP3, after(CPP2)
+ 92. local new=_N+1
+ 93. set obs `new'
+ 94. replace _varname="North Central" in 1
+ 95. replace _varname="South Central" in 2
+ 96. replace _varname="Southeast" in 3
+ 97. replace _varname="Generation (TWh)" in 4
+ 98. foreach y in "CPP" "CPP_Mass" "CPP_Rate"{
+ 99. forvalues j = 1(1)3{
+100. replace `y'`j'=round(`y'`j',0.01)
+101. }
+102. }
+103. tempfile TableB1_Allowance_price_`x'
+104. save `TableB1_Allowance_price_`x''
+105. 
+. use ./intermediate_data/Generation_Mix_`x',clear
+106. keep Energy P2030*
+107. drop P2030_*SCC50
+108. keep if strpos(Energy,"CC - New")| strpos(Energy,"Solar")| strpos(Energy,"Wind")
+109. xpose,clear varname
+110. rename v1 CC_New
+111. rename v2 Solar
+112. rename v3 Wind
+113. drop in 1
+114. gen Solar_Wind=Solar+Wind
+115. replace Solar_Wind=Solar_Wind/1000
+116. replace CC_New=CC_New/1000
+117. keep CC_New Solar_Wind _varname 
+118. xpose,clear varname
+119. rename P2030_Base CPP1
+120. rename P2030_Base_SCC20 CPP2
+121. rename P2030_Base_SCC100 CPP3
+122. rename P2030_CPP_Mass CPP_Mass1
+123. rename P2030_CPP_Mass_SCC20 CPP_Mass2
+124. rename P2030_CPP_Mass_SCC100 CPP_Mass3
+125. rename P2030_CPP_Rate CPP_Rate1
+126. rename P2030_CPP_Rate_SCC20 CPP_Rate2
+127. rename P2030_CPP_Rate_SCC100 CPP_Rate3
+128. foreach y in "CPP" "CPP_Mass" "CPP_Rate"{
+129. forvalues j = 1(1)3{
+130. replace `y'`j'=round(`y'`j',1)
+131. }
+132. }
+133. gsort -_varname
+134. tempfile TableB1_Generation_`x'
+135. save `TableB1_Generation_`x''
+136. 
+. use `TableB1_Emissions_`x'',clear
+137. append using `TableB1_Productions_`x''
+138. append using `TableB1_Wholesale_price_`x''
+139. append using `TableB1_Allowance_price_`x''
+140. append using `TableB1_Generation_`x''
+141. rename _varname Case
+142. order Case, first
+143. tempfile TableB1_`x'
+144. save `TableB1_`x''
+145. preserve
+146. keep Case CPP_Mass*
+147. rename CPP_Mass1 CPP1
+148. rename CPP_Mass2 CPP2
+149. rename CPP_Mass3 CPP3
+150. tempfile TableB1_Mass_`x'
+151. save `TableB1_Mass_`x''
+152. restore
+153. 
+. preserve
+154. keep Case CPP_Rate*
+155. rename CPP_Rate1 CPP1
+156. rename CPP_Rate2 CPP2
+157. rename CPP_Rate3 CPP3
+158. tempfile TableB1_Rate_`x'
+159. save `TableB1_Rate_`x''
+160. restore
+161. 
+. keep Case CPP1 CPP2 CPP3
+162. append using `TableB1_Mass_`x''
+163. append using `TableB1_Rate_`x''
+164. gen n=_n
+165. save ./intermediate_data/TableB1_`x'.dta,replace
+166. }
+(3 observations deleted)
+(9 real changes made)
+(1 real change made, 1 to missing)
+(1 observation deleted)
+variable _varname was str9 now str14
+(1 real change made)
+variable _varname was str14 now str51
+(1 real change made)
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.00000k saved
+(5 observations deleted)
+(1 real change made)
+(1 real change made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.00000l saved
+(3 observations deleted)
+(1 observation deleted)
+number of observations (_N) was 1, now 2
+variable _varname was str8 now str27
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.00000m saved
+(6 observations deleted)
+(3 missing values generated)
+(3 real changes made)
+(note: j = 1 2)
+
+Data                               long   ->   wide
+-----------------------------------------------------------------------------
+Number of obs.                        6   ->       3
+Number of variables                   5   ->       7
+j variable (2 values)          scenario   ->   (dropped)
+xij variables:
+                                  P2030   ->   P20301 P20302
+                            P2030_SCC20   ->   P2030_SCC201 P2030_SCC202
+                           P2030_SCC100   ->   P2030_SCC1001 P2030_SCC1002
+-----------------------------------------------------------------------------
+(3 missing values generated)
+(3 missing values generated)
+(3 missing values generated)
+number of observations (_N) was 3, now 4
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(3 real changes made)
+(3 real changes made)
+(2 real changes made)
+(3 real changes made)
+(3 real changes made)
+(0 real changes made)
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.00000n saved
+(13 observations deleted)
+(1 observation deleted)
+(9 real changes made)
+(9 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.00000o saved
+(note: variable CPP1 was float, now double to accommodate using data's values)
+(note: variable CPP2 was float, now double to accommodate using data's values)
+(note: variable CPP3 was float, now double to accommodate using data's values)
+(note: variable CPP_Mass1 was float, now double to accommodate using data's values)
+(note: variable CPP_Mass2 was float, now double to accommodate using data's values)
+(note: variable CPP_Mass3 was float, now double to accommodate using data's values)
+(note: variable CPP_Rate1 was float, now double to accommodate using data's values)
+(note: variable CPP_Rate2 was float, now double to accommodate using data's values)
+(note: variable CPP_Rate3 was float, now double to accommodate using data's values)
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.00000p saved
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.00000r saved
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.00000t saved
+(note: file ./intermediate_data/TableB1_P.dta not found)
+file ./intermediate_data/TableB1_P.dta saved
+(3 observations deleted)
+(9 real changes made)
+(1 real change made, 1 to missing)
+(1 observation deleted)
+variable _varname was str9 now str14
+(1 real change made)
+variable _varname was str14 now str51
+(1 real change made)
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.00000u saved
+(5 observations deleted)
+(1 real change made)
+(1 real change made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.00000v saved
+(3 observations deleted)
+(1 observation deleted)
+number of observations (_N) was 1, now 2
+variable _varname was str8 now str27
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.00000w saved
+(6 observations deleted)
+(3 missing values generated)
+(3 real changes made)
+(note: j = 1 2)
+
+Data                               long   ->   wide
+-----------------------------------------------------------------------------
+Number of obs.                        6   ->       3
+Number of variables                   5   ->       7
+j variable (2 values)          scenario   ->   (dropped)
+xij variables:
+                                  P2030   ->   P20301 P20302
+                            P2030_SCC20   ->   P2030_SCC201 P2030_SCC202
+                           P2030_SCC100   ->   P2030_SCC1001 P2030_SCC1002
+-----------------------------------------------------------------------------
+(3 missing values generated)
+(3 missing values generated)
+(3 missing values generated)
+number of observations (_N) was 3, now 4
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(3 real changes made)
+(3 real changes made)
+(1 real change made)
+(3 real changes made)
+(3 real changes made)
+(3 real changes made)
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.00000x saved
+(13 observations deleted)
+(1 observation deleted)
+(9 real changes made)
+(9 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+(2 real changes made)
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.000010 saved
+(note: variable CPP1 was float, now double to accommodate using data's values)
+(note: variable CPP2 was float, now double to accommodate using data's values)
+(note: variable CPP3 was float, now double to accommodate using data's values)
+(note: variable CPP_Mass1 was float, now double to accommodate using data's values)
+(note: variable CPP_Mass2 was float, now double to accommodate using data's values)
+(note: variable CPP_Mass3 was float, now double to accommodate using data's values)
+(note: variable CPP_Rate1 was float, now double to accommodate using data's values)
+(note: variable CPP_Rate2 was float, now double to accommodate using data's values)
+(note: variable CPP_Rate3 was float, now double to accommodate using data's values)
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.000011 saved
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.000013 saved
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.000015 saved
+(note: file ./intermediate_data/TableB1_S.dta not found)
+file ./intermediate_data/TableB1_S.dta saved
+
+. 
+. use ./intermediate_data/TableB1_P, clear
+
+. rename CPP1 Primary_No_surcharge
+
+. rename CPP2 Primary_SCC20
+
+. rename CPP3 Primary_SCC100
+
+. merge 1:1 n using ./intermediate_data/TableB1_S
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                36  (_merge==3)
+    -----------------------------------------
+
+. drop _merge
+
+. rename CPP1 Secondary_No_surcharge
+
+. rename CPP2 Secondary_SCC20
+
+. rename CPP3 Secondary_SCC100
+
+. sort n
+
+. drop n
+
+. save ./output/tables/TableB1.dta, replace
+(note: file ./output/tables/TableB1.dta not found)
+file ./output/tables/TableB1.dta saved
+
+. 
+. 
+. *********************** Write Tables into Excel **********************************
+. * Table set up
+. local Tables ./output/tables/Tables.xlsx
+
+. capture rm `Tables'
+
+. * Table 1
+. use ./output/tables/Table1.dta,clear
+
+. mkmat P2013 P2014 Fed2014 Fed_per, mat(X)
+
+. mata: b=xl()
+
+. mata: b.create_book("`Tables'","Table 1", "xlsx")
+
+. mata: b.set_sheet_gridlines("Table 1","off")
+
+. mata: b.set_column_width(1,1,10)
+
+. mata: b.set_column_width(2,3,7.5)
+
+. mata: b.set_column_width(4,4,13.5)
+
+. mata: b.set_column_width(5,5,10.5)
+
+. mata: rows=(4,10)
+
+. mata: b.set_number_format(rows,(2,4),"number")
+
+. mata: b.set_number_format(rows,5,"percent")
+
+. mata: b.set_horizontal_align(rows,1,"left")
+
+. mata: b.set_font((3,9),(1,5), "Calibri", 9)
+
+. mata: b.set_row_height(3,9,13)
+
+. mata: b.set_row_height(10,12,10)
+
+. 
+. putexcel set `Tables', sheet("Table 1") modify
+
+. putexcel A1:E1="Table 1: Annual Federal and Non-Federal Coal Production",merge hcenter font(timesnewroman,12,black) bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A2:E2="(millions of short tons)",merge hcenter font(timesnewroman,12,black) bold 
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A3="State",left bold border(top)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B3="Total, 2013" C3="Total, 2014" D3="Federal only, FY2014" E3="Federal percent", bold hcenter border(top)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A3:E3, border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A4="Wyoming"
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A5="Montana"
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A6="Colorado"
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A7="Utah"
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A8="Other"
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A9="Total"
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B4=matrix(X),hcenter
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A9:E9, border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A10:E10="Sources: EIA (2015b, 2016). Federal percent is computed as the ratio of FY production to the", merge font(Calibri,8)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A11:E11="weighted average of calendar year 2013 and 2014 production, weighted by the fraction of the", merge font(Calibri,8)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A12:E12="calendar year in the fiscal year. Excludes refuse recovery.", merge font(Calibri,8)
+file ./output/tables/Tables.xlsx saved
+
+. 
+. * Table 2
+. use ./output/tables/Table2,clear
+
+. mkmat Year RSCC2012_20 RSCC2012_50 RSCC2012_100, mat(X)
+
+. mata: b=xl()
+
+. mata: b.load_book("`Tables'")
+
+. mata: b.add_sheet("Table 2")
+
+. mata: b.set_sheet("Table 2")
+
+. mata: b.set_sheet_gridlines("Table 2","off")
+
+. mata: b.set_column_width(2,2,12)
+
+. mata: b.set_column_width(3,5,10)
+
+. mata: rows=(3,8)
+
+. mata: cols=(3,5)
+
+. mata: b.set_number_format(rows,cols,"currency_d2_negbra")
+
+. mata: b.set_font((2,8),(2,5), "Calibri", 9)
+
+. mata: b.set_horizontal_align(rows,2,"center")
+
+. mata: b.set_horizontal_align(rows,cols,"right")
+
+. mata: b.set_row_height(3,8,13)
+
+. mata: b.set_row_height(9,10,12)
+
+. 
+. putexcel set `Tables', sheet("Table 2") modify
+
+. putexcel A1:F1="Table 2: Simulated Phased-In Royalty Surcharges for Federal Coal",merge hcenter font(timesnewroman,12,black) bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A2:F2="Indexed to SCC with 10-year linear phase-in (2012$)",merge hcenter font(timesnewroman,12,black) bold 
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B3="Year" C3="20% SCC" D3="50% SCC" E3="100% SCC", hcenter border(top)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B3:E3, border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B4=matrix(X)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B8:E8, border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B9:E9="Note: Computed for sub-bituminous coal (heat content 9130 Btu/lb).", merge font(Calibri,9)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B10:E10="The SCC is the 2013 U.S. Government estimate (OMB 2013).", merge font(Calibri,9)
+file ./output/tables/Tables.xlsx saved
+
+. 
+. * Table 3
+. use ./output/tables/Table3,clear
+
+. mata: b=xl()
+
+. mata: b.load_book("`Tables'")
+
+. mata: b.add_sheet("Table 3")
+
+. mata: b.set_sheet("Table 3")
+
+. mata: b.set_sheet_gridlines("Table 3","off")
+
+. mata: b.set_column_width(1,1,25)
+
+. mata: b.set_column_width(2,8,10)
+
+. mata: rows=(4,18)
+
+. mata: cols=(2,8) 
+
+. mata: b.set_number_format(rows,cols,"0.00;(#.##);0;@")
+
+. mata: b.set_horizontal_align(rows,cols,"right")
+
+. mata: b.set_horizontal_align(rows,1,"left")
+
+. mata: b.set_font((2,18),(1,8), "Calibri", 11)
+
+. mata: b.set_row_height(2,18,15)
+
+. mata: b.set_row_height(19,19,15)
+
+. 
+. putexcel set `Tables', sheet("Table 3") modify
+
+. putexcel A1:H1="Table 3: IPM Results: Electricity and Allowance Prices",merge hcenter font(timesnewroman,12) bold border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B2="Electricity", bold hcenter 
+file ./output/tables/Tables.xlsx saved
+
+. putexcel C2:H2="CO2 Allowance Prices ($/MT CO2)",merge hcenter bold border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A3="Case" B3="price", bold hcenter
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B4="($/MWh)" C4="East Central" D4="North Central" E4="Northeast" F4="South Central" G4="Southeast" H4="West", bold hcenter
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A1:H1, border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel C2:H2, border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A4:H4, border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A18:H18, border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A5="No CPP, no royalty surcharge", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A6="No CPP, 20% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A7="No CPP, 50% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A8="No CPP, 100% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A10="CPP mass case, no surcharge", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A11="CPP mass case with 20% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A12="CPP mass case with 50% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A13="CPP mass case with 100% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A15="CPP rate case, no surcharge", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A16="CPP rate case with 20% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A17="CPP rate case with 50% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A18="CPP rate case with 100% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. 
+. mkmat Electricity East North_Central Northeast South_Central Southeast West in 1/4, mat(X1)
+
+. mkmat Electricity East North_Central Northeast South_Central Southeast West in 5/8, mat(X2)
+
+. mkmat Electricity East North_Central Northeast South_Central Southeast West in 9/12, mat(X3)
+
+. putexcel B5=matrix(X1)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B10=matrix(X2)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B15=matrix(X3)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A19:H19="Notes: Prices are 2012 dollars and are generation-weighted averages. Source: IPM simulations by ICF and authors calculations.",merge font(C
+> alibri,11)
+file ./output/tables/Tables.xlsx saved
+
+. 
+. * Table 4
+. use ./output/tables/Table4,clear
+
+. mata: b=xl()
+
+. mata: b.load_book("`Tables'","xlsx")
+locale xlsx not found
+
+. mata: b.add_sheet("Table 4")
+
+. mata: b.set_sheet("Table 4")
+
+. mata: b.set_sheet_gridlines("Table 4","off")
+
+. mata: b.set_column_width(1,1,25)
+
+. mata: b.set_column_width(2,4,12)
+
+. mata: b.set_column_width(5,6,14)
+
+. mata: rows=(6,21)
+
+. mata: cols=(2,6)
+
+. mata: b.set_number_format(rows,2,"account")
+
+. mata: b.set_number_format(rows,3,"number")
+
+. mata: b.set_number_format(rows,4,"0.0%;-0.0%;0;@")
+
+. mata: b.set_number_format(rows,(5,6),"currency_negbra")
+
+. mata: b.set_horizontal_align(rows,cols,"right")
+
+. mata: b.set_horizontal_align(rows,1,"left")
+
+. mata: b.set_font((2,21),(1,6), "Calibri", 11)
+
+. mata: b.set_row_height(2,24,15)
+
+. 
+. putexcel set `Tables', sheet("Table 4") modify
+
+. putexcel A1:F1="Table 4: IPM Results: Emissions and Abatement Costs of Royalty Surcharge",merge hcenter font(timesnewroman,12) bold border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B3="CO2 Emissions", bold hcenter 
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B4="in 2030 (MMT)", bold hcenter
+file ./output/tables/Tables.xlsx saved
+
+. putexcel C2:D2="Emissions in 2030 relative to",merge hcenter bold 
+file ./output/tables/Tables.xlsx saved
+
+. putexcel C3:D3="no CPP/no surcharge case", merge hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel E2:F2="Cost per ton CO2 avoided,", merge hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel E3:F3="relative to no-surcharge case within", merge hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel E4:F4="CPP implementation (2012$/MT)", merge hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel C5="MMT", hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel D5="percent", hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel E5="2025", hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel F5="2030", hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel C4:F4, border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A5:F5, border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A21:F21, border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. 
+. putexcel A6="No CPP, no royalty surcharge", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A7="No CPP, 20% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A8="No CPP, 50% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A9="No CPP, 100% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A11="CPP mass case, no surcharge", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A12="CPP mass case with 20% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A13="CPP mass case with 50% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A14="CPP mass case with 100% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A16="CPP rate case, no surcharge", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A17="CPP rate case with 20% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A18="CPP rate case with 50% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A19="CPP rate case with 100% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A21="Memo: SCC (2012$)"
+file ./output/tables/Tables.xlsx saved
+
+. 
+. mkmat Emission Delta percent Abmnt_Cost4 Abmnt_Cost5 in 1/4, mat(X1)
+
+. mkmat Emission Delta percent Abmnt_Cost4 Abmnt_Cost5 in 5/8, mat(X2)
+
+. mkmat Emission Delta percent Abmnt_Cost4 Abmnt_Cost5 in 9/12, mat(X3)
+
+. putexcel B6=matrix(X1)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B11=matrix(X2)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B16=matrix(X3)
+file ./output/tables/Tables.xlsx saved
+
+. use ./intermediate_data/Table4_Memo,clear
+
+. mkmat v1 v2 in 2, mat(X4)
+
+. putexcel E21=matrix(X4)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A22:F22="Notes: Abatement cost is the increase in the total cost of power production, net of the federal royalty, relative to the zero-",merge font(
+> Calibri,11)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A23:F23="surcharge CPP case, as a ratio to emissions reductions. Prices are 2012 dollars. The SCC values in the Memo line are the",merge font(Calibr
+> i,11)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A24:F24="values for emissions in 2025 and 2030 in 2012$. Source: IPM simulations by ICF and authors' calculations.",merge font(Calibri,11)
+file ./output/tables/Tables.xlsx saved
+
+. 
+. * Table 5
+. use ./output/tables/Table5,clear
+
+. mata: b=xl()
+
+. mata: b.load_book("`Tables'","xlsx")
+locale xlsx not found
+
+. mata: b.add_sheet("Table 5")
+
+. mata: b.set_sheet("Table 5")
+
+. mata: b.set_sheet_gridlines("Table 5","off")
+
+. mata: b.set_column_width(1,1,23)
+
+. mata: b.set_column_width(2,3,8.5)
+
+. mata: b.set_column_width(4,4,10.5)
+
+. mata: b.set_column_width(5,5,9)
+
+. mata: b.set_column_width(6,6,11)
+
+. mata: b.set_column_width(7,8,16)
+
+. mata: rows=(5,18)
+
+. mata: cols=(2,8)
+
+. mata: b.set_number_format(rows,(2,5),"#,###,###;-#,###,###;0;@")
+
+. mata: b.set_number_format(rows,(6,7),"number")
+
+. mata: b.set_number_format(rows,8,"0.0%;-0.0%;0;@")
+
+. mata: b.set_horizontal_align(rows,cols,"right")
+
+. mata: b.set_horizontal_align(rows,1,"left")
+
+. mata: b.set_font((2,18),(1,8), "Calibri", 11)
+
+. mata: b.set_row_height(2,19,15)
+
+. 
+. putexcel set `Tables', sheet("Table 5") modify
+
+. putexcel A1:H1="Table 5: IPM Results: Generation Mix and PRB Coal Production",merge hcenter font(timesnewroman,12) bold border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B2:D2="Generation (TWh)", merge bold hcenter 
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B3:B4="Coal",merge vcenter hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel C3:C4="Gas", merge vcenter hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel D3:D4="Solar & Wind", merge vcenter hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel E2="New gas", bold hcenter
+file ./output/tables/Tables.xlsx saved
+
+. putexcel E3="generation", hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel E4="(TWh)", hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel F2="PRB Coal",hcenter bold 
+file ./output/tables/Tables.xlsx saved
+
+. putexcel F3="Production", hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel F4="(m short tons)", hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel G2:H2="Change, PRB Coal, relative to no-surcharge", merge hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel G3:H3="case within CPP implementation", merge hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel G4="(m short tons)", hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel H4="(%)", hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. 
+. putexcel A1:H1, border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B2:D2, border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A4:H4, border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A18:H18, border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. 
+. putexcel A5="No CPP, no royalty surcharge", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A6="No CPP, 20% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A7="No CPP, 50% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A8="No CPP, 100% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A10="CPP mass case, no surcharge", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A11="CPP mass case with 20% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A12="CPP mass case with 50% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A13="CPP mass case with 100% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A15="CPP rate case, no surcharge", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A16="CPP rate case with 20% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A17="CPP rate case with 50% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A18="CPP rate case with 100% SCC", bold
+file ./output/tables/Tables.xlsx saved
+
+. 
+. mkmat Coal Gas Solar_Wind New_Gas PRB_Coal_Prod Change_PRB Change_PRB_percent in 1/4, mat(X1)
+
+. mkmat Coal Gas Solar_Wind New_Gas PRB_Coal_Prod Change_PRB Change_PRB_percent in 5/8, mat(X2)
+
+. mkmat Coal Gas Solar_Wind New_Gas PRB_Coal_Prod Change_PRB Change_PRB_percent in 9/12, mat(X3)
+
+. putexcel B5=matrix(X1)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B10=matrix(X2)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B15=matrix(X3)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A19:H19="Notes: Results are for 2030. Source: IPM simulations by ICF and authors' calculations.",merge font(Calibri,11)
+file ./output/tables/Tables.xlsx saved
+
+. 
+. * Table 6
+. use ./output/tables/Table6,clear
+
+. mata: b=xl()
+
+. mata: b.load_book("`Tables'","xlsx")
+locale xlsx not found
+
+. mata: b.add_sheet("Table 6")
+
+. mata: b.set_sheet("Table 6")
+
+. mata: b.set_sheet_gridlines("Table 6","off")
+
+. mata: b.set_column_width(1,1,33)
+
+. mata: b.set_column_width(2,2,11)
+
+. mata: b.set_column_width(3,5,8.5)
+
+. mata: b.set_column_width(6,6,11.5)
+
+. mata: cols=(2,6)
+
+. mata: b.set_number_format(6,cols,"account")
+
+. mata: b.set_number_format((7,8),cols,"number")
+
+. mata: b.set_number_format(9,cols,"currency_d2_negbra")
+
+. mata: b.set_number_format((15,16),cols,"account")
+
+. mata: b.set_number_format(18,cols,"account")
+
+. mata: b.set_number_format((19,20),cols,"number")
+
+. mata: b.set_number_format((21,25),cols,"currency_d2_negbra")
+
+. mata: b.set_number_format((27,28),cols,"account")
+
+. mata: b.set_horizontal_align((6,28),cols,"right")
+
+. mata: b.set_font((2,28),(1,6), "Calibri", 11)
+
+. mata: b.set_row_height(2,30,15)
+
+. 
+. putexcel set `Tables', sheet("Table 6") modify
+
+. putexcel A1:F1="Table 6: IPM Results: Comparison of Royalty Surcharge and Quantity Limit Cases",merge hcenter font(timesnewroman,12) bold border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B3="No surcharge", hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel C2:D2="Royalty surcharge", merge hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel E2:F2="Tonnage production cap", merge hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel C3:C4="20% SCC", merge hcenter vcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel D3:D4="100% SCC", merge hcenter vcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel E3:E4="50% cap", merge hcenter vcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel F3="No new leases", hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel F4="or renewals", hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel C2:F2, border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A4:F4, border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A5:F5, border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A28:F28, border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. 
+. putexcel B5:F5="Panel A. No CPP", merge hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A6="Emissions (MMT)", bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A7="PRB production (MST)",bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A8="Total coal production (MST)", bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A9="Wholesale electricity price ($/MWh)",bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A10="Allowance price",bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A11="North Central", bold right
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A12="South Central",bold right
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A13="Southeast",bold right
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A14="Generation (TWh)", bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A15="Solar+Wind", bold right
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A16="New NGCC", bold right
+file ./output/tables/Tables.xlsx saved
+
+. 
+. putexcel B17:F17="Panel B. Mass-based CPP", merge hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A17:F17,border(top)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A17:F17,border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A18="Emissions (MMT)", bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A19="PRB production (MST)",bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A20="Total coal production (MST)", bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A21="Wholesale electricity price ($/MWh)",bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A22="Allowance price",bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A23="North Central", bold right
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A24="South Central",bold right
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A25="Southeast",bold right
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A26="Generation (TWh)", bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A27="Solar+Wind", bold right
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A28="New NGCC", bold right
+file ./output/tables/Tables.xlsx saved
+
+. 
+. mkmat Primary_No_surcharge Primary_SCC20 Primary_SCC100 CPP_Cap50 CPP_NoLimit in 1/11, mat(X1)
+
+. mkmat Primary_No_surcharge Primary_SCC20 Primary_SCC100 CPP_Cap50 CPP_NoLimit in 12/22, mat(X2)
+
+. putexcel B6=matrix(X1)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B18=matrix(X2)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A29:F29="Notes: All results are for 2040, computed under the secondary base case. The tonnage production caps assume a",merge font(Calibri,11)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A30:F30="20 year linear phase-in. Source: IPM simulations by ICF.",merge font(Calibri,11)
+file ./output/tables/Tables.xlsx saved
+
+. 
+. * Table B.1
+. use ./output/tables/TableB1,clear
+
+. mata: b=xl()
+
+. mata: b.load_book("`Tables'","xlsx")
+locale xlsx not found
+
+. mata: b.add_sheet("Table B1")
+
+. mata: b.set_sheet("Table B1")
+
+. mata: b.set_sheet_gridlines("Table B1","off")
+
+. mata: b.set_column_width(1,1,40)
+
+. mata: b.set_column_width(2,2,10)
+
+. mata: b.set_column_width(3,4,8)
+
+. mata: b.set_column_width(5,5,10)
+
+. mata: b.set_column_width(6,7,8)
+
+. mata: cols=(2,7)
+
+. mata: b.set_number_format(5,cols,"account")
+
+. mata: b.set_number_format(6,cols,"0.0%;-0.0%;0;@")
+
+. mata: b.set_number_format((7,8),cols,"number")
+
+. mata: b.set_number_format(9,cols,"currency_d2_negbra")
+
+. mata: b.set_number_format((15,16),cols,"number")
+
+. 
+. mata: b.set_number_format(18,cols,"account")
+
+. mata: b.set_number_format(19,cols,"0.0%;-0.0%;0;@")
+
+. mata: b.set_number_format((20,21),cols,"number")
+
+. mata: b.set_number_format((22,26),cols,"currency_d2_negbra")
+
+. mata: b.set_number_format((28,29),cols,"number")
+
+. 
+. mata: b.set_number_format(31,cols,"account")
+
+. mata: b.set_number_format(32,cols,"0.0%;-0.0%;0;@")
+
+. mata: b.set_number_format((33,34),cols,"number")
+
+. mata: b.set_number_format((35,39),cols,"currency_d2_negbra")
+
+. mata: b.set_number_format((41,42),cols,"number")
+
+. mata: b.set_horizontal_align((5,42),cols,"right")
+
+. mata: b.set_font((2,42),(1,7), "Calibri", 11)
+
+. mata: b.set_row_height(2,42,15)
+
+. 
+. putexcel set `Tables', sheet("Table B1") modify
+
+. putexcel A1:G1="Table B.1: IPM Results: Comparison of the Primary and Secondary Base Cases",merge hcenter font(timesnewroman,12) bold border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B2:D2="Primary Base Case", merge hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel E2:G2="Secondary Base Case", merge hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B3="No surcharge", hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel C3="20% SCC", hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel D3="100% SCC", hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel E3="No surcharge", hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel F3="20% SCC", hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel G3="100% SCC", hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B4:D4="A. No CPP", merge hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel E4:G4="A. No CPP", merge hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. 
+. putexcel B2:G2, border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B3:G3, border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A4:G4, border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A2:A4, border(right)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel D2:D4, border(right)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A42:G42, border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. 
+. putexcel A5="Emissions (MMT)", bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A6="Relative to No CPP, no surcharge (within base case)", bold right
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A7="PRB production (MST)",bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A8="Total coal production (MST)", bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A9="Wholesale electricity price ($/MWh)",bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A10="Allowance price",bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A11="North Central", bold right
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A12="South Central",bold right
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A13="Southeast",bold right
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A14="Generation (TWh)", bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A15="Solar+Wind", bold right
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A16="New NGCC", bold right
+file ./output/tables/Tables.xlsx saved
+
+. 
+. putexcel B17:D17="B. CPP mass-based", merge hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel E17:G17="B. CPP mass-based", merge hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A17:G17,border(top)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A17:G17,border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B17,border(left)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B17,border(right)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A18="Emissions (MMT)", bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A19="Relative to No CPP, no surcharge (within base case)", bold right
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A20="PRB production (MST)",bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A21="Total coal production (MST)", bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A22="Wholesale electricity price ($/MWh)",bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A23="Allowance price",bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A24="North Central", bold right
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A25="South Central",bold right
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A26="Southeast",bold right
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A27="Generation (TWh)", bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A28="Solar+Wind", bold right
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A29="New NGCC", bold right
+file ./output/tables/Tables.xlsx saved
+
+. 
+. putexcel B30:D30="C. CPP rate-based", merge hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel E30:G30="B. CPP rate-based", merge hcenter bold
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A30:G30,border(top)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A30:G30,border(bottom)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B30,border(left)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B30,border(right)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A31="Emissions (MMT)", bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A32="Relative to No CPP, no surcharge (within base case)", bold right
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A33="PRB production (MST)",bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A34="Total coal production (MST)", bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A35="Wholesale electricity price ($/MWh)",bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A36="Allowance price",bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A37="North Central", bold right
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A38="South Central",bold right
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A39="Southeast",bold right
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A40="Generation (TWh)", bold left
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A41="Solar+Wind", bold right
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A42="New NGCC", bold right
+file ./output/tables/Tables.xlsx saved
+
+. 
+. mkmat Primary_No_surcharge Primary_SCC20 Primary_SCC100 Secondary_No_surcharge Secondary_SCC20 Secondary_SCC100 in 1/12, mat(X1)
+
+. mkmat Primary_No_surcharge Primary_SCC20 Primary_SCC100 Secondary_No_surcharge Secondary_SCC20 Secondary_SCC100 in 13/24, mat(X2)
+
+. mkmat Primary_No_surcharge Primary_SCC20 Primary_SCC100 Secondary_No_surcharge Secondary_SCC20 Secondary_SCC100 in 25/36, mat(X3)
+
+. 
+. putexcel B5=matrix(X1)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B18=matrix(X2)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel B31=matrix(X3)
+file ./output/tables/Tables.xlsx saved
+
+. putexcel A43:G43="Notes: All results are for 2030. Source: IPM simulations by ICF. See Section 4 for a discussion of the assumptions used in each base case."
+> ,merge font(Calibri,10)
+file ./output/tables/Tables.xlsx saved
+
+. 
+end of do-file
+
+. do "code/analyze/3_figures.do"
+
+. *************************************************************************
+. * PROJECT: grs_federal_coal_reform
+. * SOURCE OF THE RAW DATA: GRS_data.xlsx
+. * AUTHORS: Hui Zhou and Todd Gerarden
+. * DATE: February 2019
+. * STATA VERSION: Stata/MP 15.1 for Mac (Revision 17 Dec 2018)
+. **************************************************************************
+. 
+. clear
+
+. set scheme s2color
+
+. 
+. *********************************************************************************
+. * FIGURE 1: US Coal Production by Region, 2001-2006 *
+. *********************************************************************************
+. use ./intermediate_data/EIA_Prod_Region,clear
+
+. destring P2017, replace
+P2017: all characters numeric; replaced as long
+
+. xpose, clear varname format
+
+. rename v1 US
+
+. rename v2 APP
+
+. rename v3 APN
+
+. rename v4 APC
+
+. rename v5 APS
+
+. rename v6 INT
+
+. rename v7 ILL
+
+. rename v8 INO
+
+. rename v9 WSB
+
+. rename v10 PRB
+
+. rename v11 UNT
+
+. rename v12 WBO
+
+. gen OtherWestern=UNT+WBO
+(1 missing value generated)
+
+. keep PRB OtherWestern APP INT _varname
+
+. replace PRB=PRB/1000000
+(17 real changes made)
+
+. replace OtherWestern=OtherWestern/1000000
+(17 real changes made)
+
+. replace APP=APP/1000000
+(17 real changes made)
+
+. replace INT=INT/1000000
+(17 real changes made)
+
+. 
+. drop in 1
+(1 observation deleted)
+
+. gen Year=.
+(17 missing values generated)
+
+. forv i=2001(1)2017{
+  2. replace Year=`i' if strpos(_varname,"`i'")
+  3. }
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+
+. gen Y2=PRB+OtherWestern
+
+. gen Y3=Y2+APP
+
+. gen Y4=Y3+INT
+
+. 
+. twoway (area Y4 Year, col(purple*0.5)) ///
+>        (area Y3 Year, col(midgreen*0.5)) ///
+>        (area Y2 Year, col(red*0.6)) ///
+>        (area PRB Year, col(midblue*0.5)), ///
+>            xlabel(2001(1)2017,labsize(*0.8)) ///
+>            ylabel(0(200)1400,labsize(*0.8) format(%9.0gc) angle(0) grid gmax) ///
+>        xtitle("") ///
+>            ytitle("Million short tons") ///
+>            legend(label(1 "Interior") label(2 "Appalachia") label(3 "Other Western") label(4 "Powder River Basin")) ///
+>            legend(pos(6) col(4) region(lc(white)) symysize(*0.5) symxsize(*0.15)) /// 
+>            graphregion(col(white))
+
+. graph export ./output/figures/Figure1.pdf, replace 
+(file /Users/todd/Dropbox/xProjects/coal royalties/grs_federal_coal_reform/output/figures/Figure1.pdf written in PDF format)
+
+.           
+.            
+. *********************************************************************************
+. * FIGURE 2: Federal lease renewal profile as of January 2016 *
+. *********************************************************************************
+. use ./intermediate_data/Lease_data.dta, clear
+
+. tab Yrs_to_adj, gen(year)
+
+ Yrs_to_adj |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          1 |         29       10.10       10.10
+          2 |         25        8.71       18.82
+          3 |         21        7.32       26.13
+          4 |         16        5.57       31.71
+          5 |         21        7.32       39.02
+          6 |         33       11.50       50.52
+          7 |         40       13.94       64.46
+          8 |         30       10.45       74.91
+          9 |         21        7.32       82.23
+         10 |         16        5.57       87.80
+         11 |         10        3.48       91.29
+         12 |          5        1.74       93.03
+         13 |          2        0.70       93.73
+         14 |          4        1.39       95.12
+         15 |          2        0.70       95.82
+         16 |          4        1.39       97.21
+         17 |          6        2.09       99.30
+         18 |          1        0.35       99.65
+         19 |          1        0.35      100.00
+------------+-----------------------------------
+      Total |        287      100.00
+
+. gen year20=0
+
+. forv i=1/20{
+  2.    gen ton_year`i'=Tons*year`i'
+  3.    egen Count`i'=sum(year`i')
+  4.    egen Count_wtd_ton`i'=sum(ton_year`i')
+  5.    replace Count_wtd_ton`i'=Count_wtd_ton`i'/1000000
+  6.    }
+(45 missing values generated)
+(330 real changes made)
+(45 missing values generated)
+(330 real changes made)
+(45 missing values generated)
+(330 real changes made)
+(45 missing values generated)
+(330 real changes made)
+(45 missing values generated)
+(330 real changes made)
+(45 missing values generated)
+(330 real changes made)
+(45 missing values generated)
+(330 real changes made)
+(45 missing values generated)
+(330 real changes made)
+(45 missing values generated)
+(330 real changes made)
+(45 missing values generated)
+(330 real changes made)
+(45 missing values generated)
+(330 real changes made)
+(45 missing values generated)
+(330 real changes made)
+(45 missing values generated)
+(330 real changes made)
+(45 missing values generated)
+(330 real changes made)
+(45 missing values generated)
+(330 real changes made)
+(45 missing values generated)
+(330 real changes made)
+(45 missing values generated)
+(330 real changes made)
+(45 missing values generated)
+(330 real changes made)
+(45 missing values generated)
+(330 real changes made)
+(2 missing values generated)
+(0 real changes made)
+
+. keep Count*
+
+. keep in 1
+(329 observations deleted)
+
+. gen i=1
+
+. reshape long Count Count_wtd_ton, i(i) j(Yrs_to_exp)
+(note: j = 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20)
+
+Data                               wide   ->   long
+-----------------------------------------------------------------------------
+Number of obs.                        1   ->      20
+Number of variables                  41   ->       4
+j variable (20 values)                    ->   Yrs_to_exp
+xij variables:
+              Count1 Count2 ... Count20   ->   Count
+Count_wtd_ton1 Count_wtd_ton2 ... Count_wtd_ton20->Count_wtd_ton
+-----------------------------------------------------------------------------
+
+. drop i
+
+. 
+. gen sum_c=.
+(20 missing values generated)
+
+. gen sum_t=.
+(20 missing values generated)
+
+. forv i=1/20{
+  2.      egen sum_c`i'=sum(Count) in 1/`i'
+  3.          replace sum_c=sum_c`i' in `i'
+  4.          drop sum_c`i'
+  5.          egen sum_t`i'=sum(Count_wtd_ton) in 1/`i'
+  6.          replace sum_t=sum_t`i' in `i'
+  7.          drop sum_t`i'
+  8. } 
+(19 missing values generated)
+(1 real change made)
+(19 missing values generated)
+(1 real change made)
+(18 missing values generated)
+(1 real change made)
+(18 missing values generated)
+(1 real change made)
+(17 missing values generated)
+(1 real change made)
+(17 missing values generated)
+(1 real change made)
+(16 missing values generated)
+(1 real change made)
+(16 missing values generated)
+(1 real change made)
+(15 missing values generated)
+(1 real change made)
+(15 missing values generated)
+(1 real change made)
+(14 missing values generated)
+(1 real change made)
+(14 missing values generated)
+(1 real change made)
+(13 missing values generated)
+(1 real change made)
+(13 missing values generated)
+(1 real change made)
+(12 missing values generated)
+(1 real change made)
+(12 missing values generated)
+(1 real change made)
+(11 missing values generated)
+(1 real change made)
+(11 missing values generated)
+(1 real change made)
+(10 missing values generated)
+(1 real change made)
+(10 missing values generated)
+(1 real change made)
+(9 missing values generated)
+(1 real change made)
+(9 missing values generated)
+(1 real change made)
+(8 missing values generated)
+(1 real change made)
+(8 missing values generated)
+(1 real change made)
+(7 missing values generated)
+(1 real change made)
+(7 missing values generated)
+(1 real change made)
+(6 missing values generated)
+(1 real change made)
+(6 missing values generated)
+(1 real change made)
+(5 missing values generated)
+(1 real change made)
+(5 missing values generated)
+(1 real change made)
+(4 missing values generated)
+(1 real change made)
+(4 missing values generated)
+(1 real change made)
+(3 missing values generated)
+(1 real change made)
+(3 missing values generated)
+(1 real change made)
+(2 missing values generated)
+(1 real change made)
+(2 missing values generated)
+(1 real change made)
+(1 missing value generated)
+(1 real change made)
+(1 missing value generated)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+
+. 
+. gen By_lease=sum_c/sum_c[20]
+
+. gen wtd_ton=sum_t/sum_t[20]
+
+. gen Model_appx=1
+
+. replace Model_appx=.1*_n in 1/9
+(9 real changes made)
+
+. 
+. twoway (line By_lease Yrs_to_exp, lcolor(emidblue) lwidth(medthick)) ///
+>        (line wtd_ton Yrs_to_exp, lcolor(black) lwidth(medthick) lp(dash)) ///
+>            (line Model_appx Yrs_to_exp, lcolor(black) lw(medthick)), ///
+>            xlabel(0(2)20) ///
+>            ylabel(0(0.1)1, format(%02.1f) angle(0)) ///
+>            xtitle("Years until readjustment") ///
+>            legend(off) ///
+>            text(0.35 7 "Lease count") ///
+>            text(0.58 2.2 "Weighted by") ///
+>            text(0.53 2.2 "tonnage") ///
+>            text(0.87 6 "Linear modeling") ///
+>            text(0.83 6 "approximation") ///
+>            graphregion(col(white))
+
+. graph export ./output/figures/Figure2.pdf, replace 
+(file /Users/todd/Dropbox/xProjects/coal royalties/grs_federal_coal_reform/output/figures/Figure2.pdf written in PDF format)
+
+.            
+.   
+. *********************************************************************************
+. * FIGURE 4: Wholesale Electricity Prices in 2030 (National Average) *
+. *********************************************************************************
+. * Y axis: Wholesale Electricity Price in 2030
+. use ./intermediate_data/Firm_Wholesale_Power_Prices_P.dta,clear
+
+. keep Scenario Year5
+
+. replace Scenario="Base" if strpos(Scenario,"Base Case")
+(4 real changes made)
+
+. replace Scenario="CPP_Mass" if strpos(Scenario,"CPP Mass Case")
+(4 real changes made)
+
+. replace Scenario="CPP_Rate" if strpos(Scenario,"CPP Rate Case")
+(4 real changes made)
+
+. bysort Scenario: gen scenario=_n
+
+. reshape wide Year5, i(Scenario) j(scenario)
+(note: j = 1 2 3 4)
+
+Data                               long   ->   wide
+-----------------------------------------------------------------------------
+Number of obs.                       12   ->       3
+Number of variables                   3   ->       5
+j variable (4 values)          scenario   ->   (dropped)
+xij variables:
+                                  Year5   ->   Year51 Year52 ... Year54
+-----------------------------------------------------------------------------
+
+. xpose,clear 
+
+. rename v1 Base
+
+. rename v2 CPP_Mass
+
+. rename v3 CPP_Rate
+
+. drop in 1
+(1 observation deleted)
+
+. gen scenario=_n
+
+. save ./intermediate_data/Figure4_y.dta, replace
+(note: file ./intermediate_data/Figure4_y.dta not found)
+file ./intermediate_data/Figure4_y.dta saved
+
+. 
+. * X axis: Per-ton surcharge under different scenarios
+. use ./intermediate_data/Table2_surcharge,clear
+
+. keep if Year==2016
+(35 observations deleted)
+
+. keep SCC2012*
+
+. xpose, clear varname
+
+. gen scenario=. 
+(3 missing values generated)
+
+. rename v1 surcharge
+
+. replace scenario=2 if strpos(_varname, "20")
+(3 real changes made)
+
+. replace scenario=3 if strpos(_varname, "50")
+(1 real change made)
+
+. replace scenario=4 if strpos(_varname, "100")
+(1 real change made)
+
+. expand 2 in 1
+(1 observation created)
+
+. replace surcharge=0 in 4
+(1 real change made)
+
+. replace scenario=1 in 4
+(1 real change made)
+
+. drop _varname
+
+. save ./intermediate_data/surcharge_x.dta,replace
+(note: file ./intermediate_data/surcharge_x.dta not found)
+file ./intermediate_data/surcharge_x.dta saved
+
+. merge 1:1 scenario using ./intermediate_data/Figure4_y
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                 4  (_merge==3)
+    -----------------------------------------
+
+. drop _merge
+
+. 
+. twoway (line Base surcharge, lcolor(green) lwidth(medthick)) ///
+>        (line CPP_Mass surcharge, lcolor(blue) lwidth(medthick)) ///
+>            (line CPP_Rate surcharge, lcolor(red) lwidth(medthick)), ///   
+>            xlabel(0 "$0" 10 "$10" 20 "$20" 30 "$30" 40 "$40" 50 "$50" 60 "$60" 70 "$70" 80 "$80") ///
+>            ylabel(53 "$53" 54 "$54" 55 "$55" 56 "$56" 57 "$57" 58 "$58" 59 "$59" 60 "$60" 61 "$61" 62 "$62" 63 "$63",angle(0)) ///         
+>            xtitle("$/short ton royalty surcharge, 2016") ///
+>            ytitle("$/MWh") ///
+>            legend(off) ///
+>            text(61.5 65 "No CPP", color(green)) ///
+>            text(61.5 24 "Mass-based CPP", color(blue)) ///
+>            text(55.6 13 "Rate-based CPP", color(red)) ///
+>            graphregion(col(white))
+
+. graph export ./output/figures/Figure4.pdf, replace 
+(file /Users/todd/Dropbox/xProjects/coal royalties/grs_federal_coal_reform/output/figures/Figure4.pdf written in PDF format)
+
+.            
+. *********************************************************************************
+. * FIGURE 5: Tradable Allowance Prices in 2030 *
+. *********************************************************************************
+. * Y axis: CO2 allowance prices in 2030
+. use ./intermediate_data/CO2_Allowance_Price_P.dta,clear
+
+. keep Region P2030*
+
+. keep in 1/6
+(6 observations deleted)
+
+. xpose,clear varname
+
+. rename v1 EC_Mass
+
+. lab var EC_Mass "EC-Mass"
+
+. rename v2 NC_Mass
+
+. lab var NC_Mass "NC-Mass"
+
+. rename v3 NE_Mass
+
+. lab var NE_Mass "NE-Mass"
+
+. rename v4 SC_Mass
+
+. lab var SC_Mass "SC-Mass"
+
+. rename v5 SE_Mass
+
+. lab var SE_Mass "SE-Mass"
+
+. rename v6 WE_Mass
+
+. lab var WE_Mass "WE-Mass"
+
+. keep EC NC SC SE _varname
+
+. drop in 1
+(1 observation deleted)
+
+. gen scenario=1 
+
+. replace scenario=2 if strpos(_varname, "SCC20")
+(1 real change made)
+
+. replace scenario=3 if strpos(_varname, "SCC50")
+(1 real change made)
+
+. replace scenario=4 if strpos(_varname, "SCC100")
+(1 real change made)
+
+. drop _varname 
+
+. save ./intermediate_data/Figure5_y1.dta, replace
+(note: file ./intermediate_data/Figure5_y1.dta not found)
+file ./intermediate_data/Figure5_y1.dta saved
+
+. 
+. use ./intermediate_data/CO2_Allowance_Price_P.dta,clear
+
+. keep Region P2030*
+
+. keep in 7/12
+(6 observations deleted)
+
+. xpose,clear varname
+
+. rename v1 EC_Rate
+
+. lab var EC_Rate "EC-Rate"
+
+. rename v2 NC_Rate
+
+. lab var NC_Rate "NC-Rate"
+
+. rename v3 NE_Rate
+
+. lab var NE_Rate "NE-Rate"
+
+. rename v4 SC_Rate
+
+. lab var SC_Rate "SC-Rate"
+
+. rename v5 SE_Rate
+
+. lab var SE_Rate "SE-Rate"
+
+. rename v6 WE_Rate
+
+. lab var WE_Rate "WE-Rate"
+
+. keep EC NC SC SE _varname
+
+. drop in 1
+(1 observation deleted)
+
+. gen scenario=1 
+
+. replace scenario=2 if strpos(_varname, "SCC20")
+(1 real change made)
+
+. replace scenario=3 if strpos(_varname, "SCC50")
+(1 real change made)
+
+. replace scenario=4 if strpos(_varname, "SCC100")
+(1 real change made)
+
+. drop _varname 
+
+. save ./intermediate_data/Figure5_y2.dta, replace
+(note: file ./intermediate_data/Figure5_y2.dta not found)
+file ./intermediate_data/Figure5_y2.dta saved
+
+. 
+. merge 1:1 scenario using ./intermediate_data/Figure5_y1
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                 4  (_merge==3)
+    -----------------------------------------
+
+. drop _merge
+
+. merge 1:1 scenario using ./intermediate_data/surcharge_x
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                 4  (_merge==3)
+    -----------------------------------------
+
+. drop _merge
+
+. 
+. twoway (line EC_Mass surcharge, lcolor(purple) lwidth(medthick)) ///
+>        (line NC_Mass surcharge, lcolor(blue) lwidth(medthick)) ///
+>            (line SC_Mass surcharge, lcolor(red) lwidth(medthick)) ///
+>        (line SE_Mass surcharge, lcolor(green) lwidth(medthick)) ///
+>            (line EC_Rate surcharge, lcolor(purple) lwidth(medthick) lpattern(dash)) ///
+>        (line NC_Rate surcharge, lcolor(blue) lwidth(medthick) lpattern(dash)) ///
+>            (line SC_Rate surcharge, lcolor(red) lwidth(medthick) lpattern(dash)) ///
+>        (line SE_Rate surcharge, lcolor(green) lwidth(medthick) lpattern(dash)), ///        
+>            xlabel(0 "$0" 10 "$10" 20 "$20" 30 "$30" 40 "$40" 50 "$50" 60 "$60" 70 "$70" 80 "$80") ///
+>            ylabel(0 "$0" 5 "$5" 10 "$10" 15 "$15" 20 "$20" 25 "$25",angle(0)) ///          
+>            xtitle("$/short ton royalty surcharge, 2016") ///
+>            ytitle("$/metric ton of CO{subscript:2}") ///
+>            legend(region(lwidth(none) lcolor(white)) col(4) symxsize(*0.5)) ///
+>            graphregion(col(white))
+
+. graph export ./output/figures/Figure5.pdf, replace 
+(file /Users/todd/Dropbox/xProjects/coal royalties/grs_federal_coal_reform/output/figures/Figure5.pdf written in PDF format)
+
+.    
+. 
+. *********************************************************************************
+. * FIGURE 6: National CO2 Emissions from the Power Sector in 2030 *
+. *********************************************************************************
+. use ./intermediate_data/Total_US_CO2_Emissions_P,clear
+
+. keep Scenario Emission5
+
+. replace Scenario="Base" if strpos(Scenario,"Base Case")
+(4 real changes made)
+
+. replace Scenario="CPP_Mass" if strpos(Scenario,"CPP Mass Case")
+(4 real changes made)
+
+. replace Scenario="CPP_Rate" if strpos(Scenario,"CPP Rate Case")
+(4 real changes made)
+
+. bysort Scenario: gen scenario=_n
+
+. reshape wide Emission5, i(Scenario) j(scenario)
+(note: j = 1 2 3 4)
+
+Data                               long   ->   wide
+-----------------------------------------------------------------------------
+Number of obs.                       12   ->       3
+Number of variables                   3   ->       5
+j variable (4 values)          scenario   ->   (dropped)
+xij variables:
+                              Emission5   ->   Emission51 Emission52 ... Emission54
+-----------------------------------------------------------------------------
+
+. xpose,clear 
+
+. rename v1 Base
+
+. rename v2 CPP_Mass
+
+. rename v3 CPP_Rate
+
+. drop in 1
+(1 observation deleted)
+
+. gen scenario=_n
+
+. save ./intermediate_data/Figure6_y.dta, replace
+(note: file ./intermediate_data/Figure6_y.dta not found)
+file ./intermediate_data/Figure6_y.dta saved
+
+. 
+. merge 1:1 scenario using ./intermediate_data/surcharge_x.dta
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                 4  (_merge==3)
+    -----------------------------------------
+
+. drop _merge
+
+. 
+. twoway (line Base surcharge, lcolor(green) lwidth(medthick)) ///
+>        (line CPP_Mass surcharge, lcolor(blue) lwidth(medthick)) ///
+>            (line CPP_Rate surcharge, lcolor(red) lwidth(medthick)), ///   
+>            xlabel(0 "$0" 10 "$10" 20 "$20" 30 "$30" 40 "$40" 50 "$50" 60 "$60" 70 "$70" 80 "$80") ///
+>            ylabel(1400(100)2100, format(%9.0fc) angle(0) gmax) ///         
+>            xtitle("$/short ton royalty surcharge, 2016") ///
+>            ytitle("Million metric tons of CO{subscript:2}") ///
+>            legend(off) ///
+>            text(1950 32 "No CPP", color(green)) ///
+>            text(1650 50 "Mass-based CPP", color(blue)) ///
+>            text(1550 20 "Rate-based CPP", color(red)) ///
+>            graphregion(col(white))
+
+. graph export ./output/figures/Figure6.pdf, replace 
+(file /Users/todd/Dropbox/xProjects/coal royalties/grs_federal_coal_reform/output/figures/Figure6.pdf written in PDF format)
+
+. 
+. 
+. *********************************************************************************
+. * FIGURE 7: Cumulative Emissions Reductions *
+. *********************************************************************************
+. use ./intermediate_data/Cumul_emissions_reductions_P, clear
+
+. xpose,clear varname
+
+. rename v1 NoCPP
+
+. rename v2 NoCPP_SCC20
+
+. rename v3 NoCPP_SCC50
+
+. rename v4 NoCPP_SCC100
+
+. rename v5 MassCPP
+
+. rename v6 MassCPP_SCC20
+
+. rename v7 MassCPP_SCC50
+
+. rename v8 MassCPP_SCC100
+
+. rename v9 RateCPP
+
+. rename v10 RateCPP_SCC20
+
+. rename v11 RateCPP_SCC50
+
+. rename v12 RateCPP_SCC100
+
+. drop in 1
+(1 observation deleted)
+
+. gen year=substr(_var,2,4)
+
+. destring year,replace
+year: all characters numeric; replaced as int
+
+. drop _varname
+
+. 
+. twoway (line NoCPP_SCC100 year, lcol(green) lwidth(medthick)) ///
+>        (line NoCPP_SCC20 year, lcol(green) lwidth(medthick) lpattern(dash)) ///
+>            (line NoCPP_SCC50 year, lcol(green) lwidth(medthick) lpattern(dash)) ///
+>            (line MassCPP year, lcol(blue) lwidth(medthick)) ///
+>            (line RateCPP year, lcol(red) lwidth(medthick)), ///
+>            ylabel(0(1)-7, angle(0)) ///
+>            xlabel(2015(5)2040) ///
+>            xscale(alt) xtitle("") legend(off) ///
+>            ytitle("Metric gigatons of CO{subscript:2}") ///
+>            text(-0.5 2035 "No CPP/20% SCC",color(green)) ///
+>            text(-2.5 2037 "No CPP/50% SCC",color(green)) ///
+>            text(-2.5 2022 "No CPP/100% SCC",color(green)) ///
+>            text(-4.6 2040 "Rate-based CPP",color(red)) ///
+>            text(-6.5 2036 "Mass-based CPP",color(blue)) ///
+>            graphregion(col(white) margin(r+8))
+
+. graph export ./output/figures/Figure7.pdf, replace 
+(file /Users/todd/Dropbox/xProjects/coal royalties/grs_federal_coal_reform/output/figures/Figure7.pdf written in PDF format)
+
+. 
+. *********************************************************************************
+. * FIGURE 8: Generation Mix in 2030 *
+. *********************************************************************************
+. use ./intermediate_data/Generation_Mix_P,clear
+
+. keep Energy P2030*
+
+. xpose,clear varname
+
+. drop in 1
+(1 observation deleted)
+
+. rename v1 Biomass
+
+. rename v2 CC_Existing
+
+. rename v3 CC_New
+
+. rename v4 Coal
+
+. rename v5 CT_Existing
+
+. rename v6 CT_New
+
+. rename v7 Geothermal
+
+. rename v8 Hydro
+
+. rename v9 Landfill
+
+. rename v10 Nuclear
+
+. rename v11 Oil_Gas
+
+. rename v12 Other
+
+. rename v13 Solar 
+
+. rename v14 Wind
+
+. rename v15 Total
+
+. rename v16 EE
+
+. 
+. gen NG=CC_Existing+CC_New+CT_Existing+CT_New
+
+. gen Oth=Total-Coal-NG
+
+. keep _varname Coal NG Oth
+
+. replace Coal=Coal/1000 
+(12 real changes made)
+
+. replace NG=NG/1000
+(12 real changes made)
+
+. replace Oth=Oth/1000
+(12 real changes made)
+
+. gen Scenario=""
+(12 missing values generated)
+
+. replace Scenario="Base" if strpos(_varname,"Base")
+variable Scenario was str1 now str4
+(4 real changes made)
+
+. replace Scenario="CPP_Mass" if strpos(_varname,"CPP_Mass")
+variable Scenario was str4 now str8
+(4 real changes made)
+
+. replace Scenario="CPP_Rate" if strpos(_varname,"CPP_Rate")
+(4 real changes made)
+
+. bysort Scenario: gen scenario=_n
+
+. drop _varname Scenario
+
+. 
+. preserve
+
+. keep in 1/4
+(8 observations deleted)
+
+. rename Coal NoCPP_Coal
+
+. rename NG NoCPP_NG
+
+. rename Oth NoCPP_Oth
+
+. tempfile NoCPP
+
+. save `NoCPP'
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.000002 saved
+
+. restore
+
+. 
+. preserve
+
+. keep in 5/8
+(8 observations deleted)
+
+. rename Coal MassCPP_Coal
+
+. rename NG MassCPP_NG
+
+. rename Oth MassCPP_Oth
+
+. tempfile MassCPP
+
+. save `MassCPP'
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.000004 saved
+
+. restore
+
+. 
+. keep in 9/12
+(8 observations deleted)
+
+. rename Coal RateCPP_Coal
+
+. rename NG RateCPP_NG
+
+. rename Oth RateCPP_Oth
+
+. tempfile RateCPP
+
+. save `RateCPP'
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.000005 saved
+
+. 
+. merge 1:1 scenario using `NoCPP'
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                 4  (_merge==3)
+    -----------------------------------------
+
+. drop _merge
+
+. merge 1:1 scenario using `MassCPP'
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                 4  (_merge==3)
+    -----------------------------------------
+
+. drop _merge
+
+. save ./intermediate_data/Figure7_y.dta, replace
+(note: file ./intermediate_data/Figure7_y.dta not found)
+file ./intermediate_data/Figure7_y.dta saved
+
+. 
+. merge 1:1 scenario using ./intermediate_data/surcharge_x.dta
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                 4  (_merge==3)
+    -----------------------------------------
+
+. drop _merge
+
+. 
+. twoway (line NoCPP_Coal surcharge, lcol(green) lwidth(medthick)) ///
+>        (line MassCPP_Coal surcharge, lcol(blue) lwidth(medthick)) ///
+>            (line RateCPP_Coal surcharge, lcol(red) lwidth(medthick)) ///
+>            (line NoCPP_NG surcharge, lcol(green) lwidth(medthick) lp(dash)) ///
+>        (line MassCPP_NG surcharge, lcol(blue) lwidth(medthick) lp(dash)) ///
+>            (line RateCPP_NG surcharge, lcol(red) lwidth(medthick) lp(dash)) ///
+>            (line NoCPP_Oth surcharge, lcol(green) lwidth(medthick) lp(".")) ///
+>        (line MassCPP_Oth surcharge, lcol(blue) lwidth(medthick) lp(".")) ///
+>            (line RateCPP_Oth surcharge, lcol(red) lwidth(medthick) lp(".")), ///
+>            xlabel(0 "$0" 10 "$10" 20 "$20" 30 "$30" 40 "$40" 50 "$50" 60 "$60" 70 "$70" 80 "$80") ///
+>            ylabel(800(100)1800, angle(0)) ///      
+>            xtitle("$/short ton royalty surcharge, 2016") ///
+>            ytitle("Terawatt hours") ///
+>            legend(off) ///
+>            text(1150 47 "No CPP", color(green)) ///
+>            text(1040 10 "Mass-based CPP", color(blue)) ///
+>            text(1160 18 "Rate-based CPP", color(red)) ///
+>            text(1050 81 "Coal (solid)", color(black)) ///
+>            text(1440 78 "Natural Gas (dash)", color(black)) ///
+>            text(1750 81 "Other (dot)", color(black)) ///        
+>            graphregion(col(white) margin(r+7))
+
+. graph export ./output/figures/Figure8.pdf, replace 
+(file /Users/todd/Dropbox/xProjects/coal royalties/grs_federal_coal_reform/output/figures/Figure8.pdf written in PDF format)
+
+. 
+. 
+. *********************************************************************************
+. * FIGURE 9: Average Nonfederal-Federal Coal Substitution Ratio *
+. *********************************************************************************
+. * Coal production on Federal lands 
+. use ./intermediate_data/PRB_Coal_Production_P.dta,clear
+
+. keep in 13
+(12 observations deleted)
+
+. keep P2030*
+
+. xpose, clear varname
+
+. gen scenario=_n
+
+. rename v1 Coal_Fed
+
+. tempfile Coal_Fed
+
+. save `Coal_Fed'
+file /var/folders/gp/82_y3dtx74bgz36lw_sppm3h0000gp/T//S_14946.000006 saved
+
+. 
+. * Coal production on Non-federal lands
+. use ./intermediate_data/Coal_Prod_Basin_P.dta,clear
+
+. keep in 7
+(6 observations deleted)
+
+. keep P2030*
+
+. xpose, clear varname
+
+. gen scenario=_n
+
+. rename v1 Coal_Total
+
+. merge 1:1 scenario using `Coal_Fed'
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                12  (_merge==3)
+    -----------------------------------------
+
+. drop _merge
+
+. gen Coal_nonFed=Coal_Total-Coal_Fed
+
+. 
+. gen D_Fed=Coal_Fed-Coal_Fed[1] in 1/4
+(8 missing values generated)
+
+. replace D_Fed=Coal_Fed-Coal_Fed[5] in 5/8
+(4 real changes made)
+
+. replace D_Fed=Coal_Fed-Coal_Fed[9] in 9/12
+(4 real changes made)
+
+. 
+. gen D_nonFed=Coal_nonFed-Coal_nonFed[1] in 1/4
+(8 missing values generated)
+
+. replace D_nonFed=Coal_nonFed-Coal_nonFed[5] in 5/8
+(4 real changes made)
+
+. replace D_nonFed=Coal_nonFed-Coal_nonFed[9] in 9/12
+(4 real changes made)
+
+. 
+. gen Ratio=-D_nonFed/D_Fed
+(3 missing values generated)
+
+. rename _varname Scenario
+
+. keep Scenario Ratio
+
+. replace Scenario="Base" if strpos(Scenario,"Base")
+(4 real changes made)
+
+. replace Scenario="CPP_Mass" if strpos(Scenario,"CPP_Mass")
+(4 real changes made)
+
+. replace Scenario="CPP_Rate" if strpos(Scenario,"CPP_Rate")
+(4 real changes made)
+
+. bysort Scenario: gen scenario=_n
+
+. reshape wide Ratio, i(Scenario) j(scenario)
+(note: j = 1 2 3 4)
+
+Data                               long   ->   wide
+-----------------------------------------------------------------------------
+Number of obs.                       12   ->       3
+Number of variables                   3   ->       5
+j variable (4 values)          scenario   ->   (dropped)
+xij variables:
+                                  Ratio   ->   Ratio1 Ratio2 ... Ratio4
+-----------------------------------------------------------------------------
+
+. xpose,clear 
+
+. rename v1 Base
+
+. rename v2 CPP_Mass
+
+. rename v3 CPP_Rate
+
+. drop in 1
+(1 observation deleted)
+
+. gen scenario=_n
+
+. 
+. merge 1:1 scenario using ./intermediate_data/surcharge_x
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                 4  (_merge==3)
+    -----------------------------------------
+
+. drop _merge
+
+. 
+. twoway (line Base surcharge, lcolor(green) lwidth(medthick)) ///
+>        (line CPP_Mass surcharge, lcolor(blue) lwidth(medthick)) ///
+>            (line CPP_Rate surcharge, lcolor(red) lwidth(medthick)), ///   
+>            xlabel(0 "$0" 10 "$10" 20 "$20" 30 "$30" 40 "$40" 50 "$50" 60 "$60" 70 "$70" 80 "$80") ///
+>            ylabel(0.00(0.10)1.00,format(%9.2f) angle(0) gmax) ///          
+>            xtitle("$/short ton royalty surcharge, 2016") ///
+>            ytitle("Substitution Ratio") legend(off) ///
+>            text(0.15 40 "No CPP", color(green)) ///
+>            text(0.65 35 "Mass-based CPP", color(blue)) ///
+>            text(0.25 70 "Rate-based CPP", color(red)) ///
+>            graphregion(col(white))
+
+. graph export ./output/figures/Figure9.pdf, replace 
+(file /Users/todd/Dropbox/xProjects/coal royalties/grs_federal_coal_reform/output/figures/Figure9.pdf written in PDF format)
+
+. 
+. *********************************************************************************
+. * FIGURE 10: Federal Royalties and Coal Production on Federal Lands *
+. *********************************************************************************
+. * Federal royalties
+. use ./intermediate_data/Table4_Royalty_State.dta,clear
+
+. keep if strpos(_varname,"Base_SCC20")
+(77 observations deleted)
+
+. save ./intermediate_data/Figure10_Royalty.dta,replace
+(note: file ./intermediate_data/Figure10_Royalty.dta not found)
+file ./intermediate_data/Figure10_Royalty.dta saved
+
+. 
+. * Coal production on federal lands
+. use ./intermediate_data/Table4_Production_State.dta,clear
+
+. keep if strpos(_varname,"Base_SCC20")
+(77 observations deleted)
+
+. save ./intermediate_data/Figure10_Prod.dta,replace
+(note: file ./intermediate_data/Figure10_Prod.dta not found)
+file ./intermediate_data/Figure10_Prod.dta saved
+
+. 
+. merge 1:1 Year using ./intermediate_data/Figure10_Royalty.dta
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                 7  (_merge==3)
+    -----------------------------------------
+
+. drop if Year==2050
+(1 observation deleted)
+
+. drop _merge
+
+. 
+. twoway (line Royalty_CO Year, lcol(green) lwidth(medthick) yaxis(1)) ///
+>        (line Royalty_UT Year, lcol(orange) lwidth(medthick) yaxis(1)) ///
+>            (line Royalty_MT Year, lcol(black) lwidth(medthick) yaxis(1)) ///
+>            (line Royalty_WY Year, lcol(blue) lwidth(medthick) yaxis(1)) ///
+>            (line Prod_CO Year, lcol(green) lwidth(medthick) lp(dash) yaxis(2)) ///
+>        (line Prod_UT Year, lcol(orange) lwidth(medthick) lp(dash) yaxis(2)) ///
+>            (line Prod_MT Year, lcol(black) lwidth(medthick) lp(dash) yaxis(2)) ///
+>            (line Prod_WY Year, lcol(blue) lwidth(medthick) lp(dash) yaxis(2)), ///
+>            ylabel(0(500)2500, format(%9.0fc) angle(0) axis(1)) ///
+>            ylabel(0(50)300, angle(0) axis(2)) ///
+>            xlabel(2015(5)2040) ///
+>            xtitle("") ///
+>            ytitle("Federal royalty (millions 2012$)", axis(1) margin(-8 0 0 0)) ///
+>            ytitle("Coal production (million short tons)", axis(2))  ///
+>            legend(label(1 "CO royalty") label(2 "UT royalty") label(3 "MT royalty") label(4 "WY royalty") ///
+>                 label(5 "CO production") label(6 "UT production") label(7 "MT production") label(8 "WY production") ///
+>                 col(4) region(lwidth(none) lcolor(white) lstyle(none)) size(*.8) symxsize(*.4) bmargin(-8 -8 0 1)) ///
+>            graphregion(col(white) margin(l+5)) xsize(6.5) ysize(5)
+
+. graph export ./output/figures/Figure10.pdf, replace 
+(file /Users/todd/Dropbox/xProjects/coal royalties/grs_federal_coal_reform/output/figures/Figure10.pdf written in PDF format)
+
+. 
+. graph close
+
+. 
+end of do-file
+
+. 
+. log close
+      name:  <unnamed>
+       log:  /Users/todd/Dropbox/xProjects/coal royalties/grs_federal_coal_reform/output/logs/grs_federal_coal_reform__8_Nov_2019_11_49_22.log
+  log type:  text
+ closed on:   8 Nov 2019, 11:50:02
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
